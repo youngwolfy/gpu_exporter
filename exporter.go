@@ -2,19 +2,27 @@ package main
 
 import (
 	"context"
-	"errors"
 	"log/slog"
+	"sync"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 type Exporter struct {
 	cfg      Config
 	client   *DCGMClient
 	metrics  *Metrics
-	peaks    *PeakTracker
+	window   *WindowAggregator
 	activity *ActivityTracker
 	hostname string
 	logger   *slog.Logger
+
+	// infoMu защищает lastInfos - список GPU, закешированный последним
+	// collect(). FlushWindow использует кэш вместо повторного
+	// запроса к DCGM на каждый скрейп.
+	infoMu    sync.RWMutex
+	lastInfos []GPUInfo
 }
 
 func NewExporter(cfg Config, client *DCGMClient, metrics *Metrics, hostname string, logger *slog.Logger) *Exporter {
@@ -22,13 +30,14 @@ func NewExporter(cfg Config, client *DCGMClient, metrics *Metrics, hostname stri
 		cfg:      cfg,
 		client:   client,
 		metrics:  metrics,
-		peaks:    NewPeakTracker(),
+		window:   NewWindowAggregator(),
 		activity: NewActivityTracker(cfg.ActiveThreshold, cfg.MinRequestTime),
 		hostname: hostname,
 		logger:   logger,
 	}
 }
 
+// SetStaticMetrics публикует версии драйвера и CUDA один раз при старте.
 func (e *Exporter) SetStaticMetrics() {
 	driverVersion, cudaVersion := e.client.StaticInfo()
 
@@ -36,6 +45,7 @@ func (e *Exporter) SetStaticMetrics() {
 	e.metrics.GPUCudaVersion.WithLabelValues(cudaVersion, e.hostname).Set(1)
 }
 
+// Run запускает цикл высокочастотного опроса DCGM до отмены контекста.
 func (e *Exporter) Run(ctx context.Context) error {
 	ticker := time.NewTicker(e.cfg.ScrapeInterval)
 	defer ticker.Stop()
@@ -56,30 +66,46 @@ func (e *Exporter) Run(ctx context.Context) error {
 	}
 }
 
-func (e *Exporter) FlushPeaks() error {
-	samples, err := e.client.Samples()
-	if err != nil {
-		return err
-	}
+// FlushWindow переводит статистику, накопленную с прошлого скрейпа, в
+// *_max и *_avg gauge'ы. Вызывается из хендлера /metrics непосредственно
+// перед сбором registry, поэтому каждый скрейп видит ровно одно окно.
+//
+// flush сбрасывает окно, exporter рассчитан на одного скрейпера.
+func (e *Exporter) FlushWindow() {
+	e.infoMu.RLock()
+	infos := e.lastInfos
+	e.infoMu.RUnlock()
 
-	for _, sample := range samples {
-		labels := labelsFor(sample.Info, e.hostname)
-		gpuIndex := sample.Info.Index
-		// FlushPeaks is called from the /metrics handler, so each scrape gets
-		// the peak values observed since the previous scrape.
-		e.metrics.GPUUtilization.With(labels).Set(e.peaks.GetAndReset(peakKey(gpuIndex, "utilization")))
-		e.metrics.GPUMemoryCopyMax.With(labels).Set(e.peaks.GetAndReset(peakKey(gpuIndex, "memory_copy_util")))
-		e.metrics.GPUMemoryUsedMax.With(labels).Set(e.peaks.GetAndReset(peakKey(gpuIndex, "memory_used_percent")))
-		e.metrics.GPUPowerDrawMax.With(labels).Set(e.peaks.GetAndReset(peakKey(gpuIndex, "power_draw")))
-		e.metrics.GPUTemperatureWin.With(labels).Set(e.peaks.GetAndReset(peakKey(gpuIndex, "temperature")))
-		e.metrics.GPUProfSMMax.With(labels).Set(e.peaks.GetAndReset(peakKey(gpuIndex, "prof_sm")))
-		e.metrics.GPUProfDRAMMax.With(labels).Set(e.peaks.GetAndReset(peakKey(gpuIndex, "prof_dram")))
-		e.metrics.GPUProfTensorMax.With(labels).Set(e.peaks.GetAndReset(peakKey(gpuIndex, "prof_tensor")))
-	}
+	snapshot := e.window.Snapshot()
 
-	return nil
+	for _, info := range infos {
+		labels := labelsFor(info, e.hostname)
+		idx := info.Index
+		e.setWindowGauges(snapshot, idx, aggUtilization, labels, e.metrics.GPUUtilization, e.metrics.GPUUtilizationAvg)
+		e.setWindowGauges(snapshot, idx, aggMemoryCopyUtil, labels, e.metrics.GPUMemoryCopyMax, e.metrics.GPUMemoryCopyAvg)
+		e.setWindowGauges(snapshot, idx, aggMemoryUsedPct, labels, e.metrics.GPUMemoryUsedMax, e.metrics.GPUMemoryUsedAvg)
+		e.setWindowGauges(snapshot, idx, aggPowerDraw, labels, e.metrics.GPUPowerDrawMax, e.metrics.GPUPowerDrawAvg)
+		e.setWindowGauges(snapshot, idx, aggTemperature, labels, e.metrics.GPUTemperatureWin, e.metrics.GPUTemperatureAvg)
+		e.setWindowGauges(snapshot, idx, aggProfSM, labels, e.metrics.GPUProfSMMax, e.metrics.GPUProfSMAvg)
+		e.setWindowGauges(snapshot, idx, aggProfDRAM, labels, e.metrics.GPUProfDRAMMax, e.metrics.GPUProfDRAMAvg)
+		e.setWindowGauges(snapshot, idx, aggProfTensor, labels, e.metrics.GPUProfTensorMax, e.metrics.GPUProfTensorAvg)
+	}
 }
 
+// setWindowGauges публикует max/avg одной метрики. Если в окне не было
+// сэмплов (ошибка DCGM, неподдерживаемое prof-поле), предыдущее значение
+// сохраняется.
+func (e *Exporter) setWindowGauges(snapshot map[windowKey]WindowStats, gpuIndex, metric string, labels prometheus.Labels, maxGauge, avgGauge *prometheus.GaugeVec) {
+	stats, ok := snapshot[windowKey{gpuIndex: gpuIndex, metric: metric}]
+	if !ok || stats.Count == 0 {
+		return
+	}
+	maxGauge.With(labels).Set(stats.Max)
+	avgGauge.With(labels).Set(stats.Avg())
+}
+
+// collect снимает один сэмпл со всех GPU: обновляет мгновенные gauge'ы,
+// добавляет выбранные поля в оконную статистику и детектирует запросы.
 func (e *Exporter) collect() error {
 	samples, err := e.client.Samples()
 	if err != nil {
@@ -87,32 +113,38 @@ func (e *Exporter) collect() error {
 	}
 
 	now := time.Now()
+	infos := make([]GPUInfo, 0, len(samples))
 	for _, sample := range samples {
+		infos = append(infos, sample.Info)
 		labels := labelsFor(sample.Info, e.hostname)
 		gpuIndex := sample.Info.Index
-		// Current samples update normal gauges, while selected fields are also
-		// tracked as scrape-window peaks.
-		e.peaks.Update(peakKey(gpuIndex, "utilization"), sample.Utilization)
-		e.peaks.Update(peakKey(gpuIndex, "power_draw"), sample.PowerDrawWatts)
-		e.peaks.Update(peakKey(gpuIndex, "temperature"), sample.Temperature)
 
 		e.metrics.GPUMemoryFree.With(labels).Set(sample.MemoryFreeBytes)
 		e.metrics.GPUMemoryUsed.With(labels).Set(sample.MemoryUsedBytes)
 		e.metrics.GPUMemoryTotal.With(labels).Set(sample.MemoryTotalBytes)
-		e.metrics.GPUTemperature.With(labels).Set(sample.Temperature)
-		e.metrics.GPUPowerDraw.With(labels).Set(sample.PowerDrawWatts)
 
+		if sample.Utilization != nil {
+			e.window.Observe(gpuIndex, aggUtilization, *sample.Utilization)
+
+			if e.activity.Observe(gpuIndex, *sample.Utilization, now) {
+				e.metrics.GPURequestCount.With(labels).Inc()
+			}
+		}
+		if sample.Temperature != nil {
+			e.metrics.GPUTemperature.With(labels).Set(*sample.Temperature)
+			e.window.Observe(gpuIndex, aggTemperature, *sample.Temperature)
+		}
+		if sample.PowerDrawWatts != nil {
+			e.metrics.GPUPowerDraw.With(labels).Set(*sample.PowerDrawWatts)
+			e.window.Observe(gpuIndex, aggPowerDraw, *sample.PowerDrawWatts)
+		}
 		if sample.MemoryCopyUtil != nil {
 			e.metrics.GPUMemoryCopyUtil.With(labels).Set(*sample.MemoryCopyUtil)
-			e.peaks.Update(peakKey(gpuIndex, "memory_copy_util"), *sample.MemoryCopyUtil)
-		} else {
-			e.metrics.GPUMemoryCopyUtil.With(labels).Set(0)
+			e.window.Observe(gpuIndex, aggMemoryCopyUtil, *sample.MemoryCopyUtil)
 		}
 		if sample.MemoryUsedPercent != nil {
 			e.metrics.GPUMemoryUsedPct.With(labels).Set(*sample.MemoryUsedPercent)
-			e.peaks.Update(peakKey(gpuIndex, "memory_used_percent"), *sample.MemoryUsedPercent)
-		} else {
-			e.metrics.GPUMemoryUsedPct.With(labels).Set(0)
+			e.window.Observe(gpuIndex, aggMemoryUsedPct, *sample.MemoryUsedPercent)
 		}
 		if sample.TemperatureMax != nil {
 			e.metrics.GPUTemperatureMax.With(labels).Set(*sample.TemperatureMax)
@@ -127,36 +159,22 @@ func (e *Exporter) collect() error {
 		}
 		if sample.ProfSMActive != nil {
 			e.metrics.GPUProfSMActive.With(labels).Set(*sample.ProfSMActive)
-			e.peaks.Update(peakKey(gpuIndex, "prof_sm"), *sample.ProfSMActive)
-		} else {
-			e.metrics.GPUProfSMActive.With(labels).Set(0)
+			e.window.Observe(gpuIndex, aggProfSM, *sample.ProfSMActive)
 		}
 		if sample.ProfDRAMActive != nil {
 			e.metrics.GPUProfDRAMActive.With(labels).Set(*sample.ProfDRAMActive)
-			e.peaks.Update(peakKey(gpuIndex, "prof_dram"), *sample.ProfDRAMActive)
-		} else {
-			e.metrics.GPUProfDRAMActive.With(labels).Set(0)
+			e.window.Observe(gpuIndex, aggProfDRAM, *sample.ProfDRAMActive)
 		}
 		if sample.ProfTensorActive != nil {
 			e.metrics.GPUProfTensorPipe.With(labels).Set(*sample.ProfTensorActive)
-			e.peaks.Update(peakKey(gpuIndex, "prof_tensor"), *sample.ProfTensorActive)
-		} else {
-			e.metrics.GPUProfTensorPipe.With(labels).Set(0)
-		}
-		if sample.ProcessCount != nil {
-			e.metrics.GPUProcesses.With(labels).Set(*sample.ProcessCount)
-		} else if sample.ProcessCountError != nil && !errors.Is(sample.ProcessCountError, context.Canceled) {
-			e.logger.Debug("GPU process count unavailable", "gpu_index", sample.Info.Index, "error", sample.ProcessCountError)
-		}
-
-		if e.activity.Observe(sample.Info.Index, sample.Utilization, now) {
-			e.metrics.GPURequestCount.With(labels).Inc()
+			e.window.Observe(gpuIndex, aggProfTensor, *sample.ProfTensorActive)
 		}
 	}
 
-	return nil
-}
+	// Кэшируем identity GPU для FlushWindow: скрейп не должен ходить в DCGM.
+	e.infoMu.Lock()
+	e.lastInfos = infos
+	e.infoMu.Unlock()
 
-func peakKey(gpuIndex, metric string) string {
-	return gpuIndex + ":" + metric
+	return nil
 }

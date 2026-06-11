@@ -61,7 +61,7 @@ func floatEnv(key string, fallback float64) float64 {
 	}
 
 	parsed, err := strconv.ParseFloat(value, 64)
-	if err != nil {
+	if err != nil || parsed < 0 {
 		return fallback
 	}
 	return parsed

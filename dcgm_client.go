@@ -7,17 +7,24 @@ import (
 	"math/rand"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/NVIDIA/go-dcgm/pkg/dcgm"
 )
 
+const (
+	watchMaxKeepAge     = 0
+	watchMaxKeepSamples = 1
+)
+
 type DCGMClient struct {
-	cleanup  func()
-	mode     string
-	logger   *slog.Logger
-	mu       sync.Mutex
-	devices  map[uint]GPUInfo
-	watchers map[uint]*gpuWatcher
+	cleanup        func()
+	mode           string
+	updateInterval time.Duration
+	logger         *slog.Logger
+	mu             sync.Mutex
+	devices        map[uint]GPUInfo
+	watchers       map[uint]*gpuWatcher
 }
 
 type gpuWatcher struct {
@@ -39,22 +46,20 @@ type GPUInfo struct {
 
 type GPUSample struct {
 	Info              GPUInfo
-	Utilization       float64
+	Utilization       *float64
 	MemoryCopyUtil    *float64
 	MemoryFreeBytes   float64
 	MemoryUsedBytes   float64
 	MemoryTotalBytes  float64
 	MemoryUsedPercent *float64
-	Temperature       float64
+	Temperature       *float64
 	TemperatureMax    *float64
-	PowerDrawWatts    float64
+	PowerDrawWatts    *float64
 	PowerLimitWatts   *float64
 	ThrottleReasons   *float64
 	ProfSMActive      *float64
 	ProfDRAMActive    *float64
 	ProfTensorActive  *float64
-	ProcessCount      *float64
-	ProcessCountError error
 }
 
 func NewDCGMClient(cfg Config, logger *slog.Logger) (*DCGMClient, error) {
@@ -64,11 +69,12 @@ func NewDCGMClient(cfg Config, logger *slog.Logger) (*DCGMClient, error) {
 	}
 
 	return &DCGMClient{
-		cleanup:  cleanup,
-		mode:     cfg.DCGMMode,
-		logger:   logger,
-		devices:  make(map[uint]GPUInfo),
-		watchers: make(map[uint]*gpuWatcher),
+		cleanup:        cleanup,
+		mode:           cfg.DCGMMode,
+		updateInterval: cfg.ScrapeInterval,
+		logger:         logger,
+		devices:        make(map[uint]GPUInfo),
+		watchers:       make(map[uint]*gpuWatcher),
 	}, nil
 }
 
@@ -221,15 +227,8 @@ func (c *DCGMClient) gpuInfo(gpuID uint) (GPUInfo, error) {
 	return info, nil
 }
 
-func (c *DCGMClient) ensureWatcher(gpuID uint) (*gpuWatcher, error) {
-	c.mu.Lock()
-	if watcher, ok := c.watchers[gpuID]; ok {
-		c.mu.Unlock()
-		return watcher, nil
-	}
-	c.mu.Unlock()
-
-	fields := []dcgm.Short{
+func baseFields() []dcgm.Short {
+	return []dcgm.Short{
 		dcgm.DCGM_FI_DEV_GPU_UTIL,
 		dcgm.DCGM_FI_DEV_MEM_COPY_UTIL,
 		dcgm.DCGM_FI_DEV_POWER_USAGE,
@@ -242,26 +241,36 @@ func (c *DCGMClient) ensureWatcher(gpuID uint) (*gpuWatcher, error) {
 		dcgm.DCGM_FI_DEV_FB_USED_PERCENT,
 		dcgm.DCGM_FI_DEV_CLOCK_THROTTLE_REASONS,
 	}
+}
 
-	// Field groups and watch groups are intentionally cached per GPU. Creating
-	// them on every sample can exhaust DCGM object limits during fast polling.
-	fieldGroupName := fmt.Sprintf("gpuExporterFields%d", rand.Uint64())
-	fieldGroupID, err := dcgm.FieldGroupCreate(fieldGroupName, fields)
-	if err != nil {
-		return nil, fmt.Errorf("create DCGM field group: %w", err)
+func profFields() []dcgm.Short {
+	return []dcgm.Short{
+		dcgm.DCGM_FI_PROF_SM_ACTIVE,
+		dcgm.DCGM_FI_PROF_DRAM_ACTIVE,
+		dcgm.DCGM_FI_PROF_PIPE_TENSOR_ACTIVE,
 	}
+}
 
-	groupName := fmt.Sprintf("gpuExporterGroup%d", rand.Uint64())
-	groupID, err := dcgm.WatchFields(gpuID, fieldGroupID, groupName)
-	if err != nil {
-		_ = dcgm.FieldGroupDestroy(fieldGroupID)
-		return nil, fmt.Errorf("watch DCGM fields: %w", err)
+func (c *DCGMClient) ensureWatcher(gpuID uint) (*gpuWatcher, error) {
+	c.mu.Lock()
+	if watcher, ok := c.watchers[gpuID]; ok {
+		c.mu.Unlock()
+		return watcher, nil
 	}
+	c.mu.Unlock()
 
-	watcher := &gpuWatcher{
-		fields:       fields,
-		fieldGroupID: fieldGroupID,
-		groupID:      groupID,
+	// Сначала пытаемся подписаться на полный набор полей, включая
+	// профилирующие. Если GPU/драйвер их не поддерживает, откатываемся
+	// на базовый набор — exporter продолжит работать без prof-метрик.
+	fields := append(baseFields(), profFields()...)
+	watcher, err := c.createWatcher(gpuID, fields)
+	if err != nil {
+		c.logger.Warn("DCGM profiling fields unavailable, falling back to basic fields",
+			"gpu_id", gpuID, "error", err)
+		watcher, err = c.createWatcher(gpuID, baseFields())
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	c.mu.Lock()
@@ -271,11 +280,48 @@ func (c *DCGMClient) ensureWatcher(gpuID uint) (*gpuWatcher, error) {
 	return watcher, nil
 }
 
-func (c *DCGMClient) applyFieldValues(gpuID uint, fields []dcgm.Short, sample *GPUSample) {
-	if err := dcgm.UpdateAllFields(); err != nil {
-		c.logger.Debug("failed to update DCGM fields", "gpu_id", gpuID, "error", err)
+// createWatcher создает DCGM field group и подписку на обновления полей.
+func (c *DCGMClient) createWatcher(gpuID uint, fields []dcgm.Short) (*gpuWatcher, error) {
+	fieldGroupName := fmt.Sprintf("gpuExporterFields%d", rand.Uint64())
+	fieldGroupID, err := dcgm.FieldGroupCreate(fieldGroupName, fields)
+	if err != nil {
+		return nil, fmt.Errorf("create DCGM field group: %w", err)
 	}
 
+	groupName := fmt.Sprintf("gpuExporterGroup%d", rand.Uint64())
+	groupID, err := dcgm.CreateGroup(groupName)
+	if err != nil {
+		_ = dcgm.FieldGroupDestroy(fieldGroupID)
+		return nil, fmt.Errorf("create DCGM device group: %w", err)
+	}
+
+	destroy := func() {
+		_ = dcgm.DestroyGroup(groupID)
+		_ = dcgm.FieldGroupDestroy(fieldGroupID)
+	}
+
+	if err := dcgm.AddToGroup(groupID, gpuID); err != nil {
+		destroy()
+		return nil, fmt.Errorf("add GPU %d to DCGM group: %w", gpuID, err)
+	}
+
+	err = dcgm.WatchFieldsWithGroupEx(fieldGroupID, groupID,
+		c.updateInterval.Microseconds(), watchMaxKeepAge, watchMaxKeepSamples)
+	if err != nil {
+		destroy()
+		return nil, fmt.Errorf("watch DCGM fields: %w", err)
+	}
+
+	return &gpuWatcher{
+		fields:       fields,
+		fieldGroupID: fieldGroupID,
+		groupID:      groupID,
+	}, nil
+}
+
+// applyFieldValues читает последние значения watch-полей. Hostengine в
+// режиме AUTO сам обновляет их с частотой updateInterval.
+func (c *DCGMClient) applyFieldValues(gpuID uint, fields []dcgm.Short, sample *GPUSample) {
 	values, err := dcgm.GetLatestValuesForFields(gpuID, fields)
 	if err != nil {
 		c.logger.Debug("failed to query extended GPU fields", "gpu_id", gpuID, "error", err)
@@ -285,11 +331,11 @@ func (c *DCGMClient) applyFieldValues(gpuID uint, fields []dcgm.Short, sample *G
 	for _, value := range values {
 		switch value.FieldID {
 		case dcgm.DCGM_FI_DEV_GPU_UTIL:
-			sample.Utilization = percentValue(value.Int64())
+			sample.Utilization = percentPointer(value.Int64())
 		case dcgm.DCGM_FI_DEV_MEM_COPY_UTIL:
 			sample.MemoryCopyUtil = percentPointer(value.Int64())
 		case dcgm.DCGM_FI_DEV_POWER_USAGE:
-			sample.PowerDrawWatts = wattsValue(value.Float64())
+			sample.PowerDrawWatts = powerDrawPointer(value.Float64())
 		case dcgm.DCGM_FI_DEV_POWER_MGMT_LIMIT:
 			if limit := wattsPointer(value.Float64()); limit != nil {
 				sample.PowerLimitWatts = limit
@@ -298,7 +344,7 @@ func (c *DCGMClient) applyFieldValues(gpuID uint, fields []dcgm.Short, sample *G
 				sample.PowerLimitWatts = &limit
 			}
 		case dcgm.DCGM_FI_DEV_GPU_TEMP:
-			sample.Temperature = temperatureValue(value.Int64())
+			sample.Temperature = temperaturePointer(value.Int64())
 		case dcgm.DCGM_FI_DEV_GPU_MAX_OP_TEMP:
 			if parsed := int64Value(value.Int64()); parsed != nil {
 				tempMax := float64(*parsed)
@@ -360,20 +406,15 @@ func int64Value(value int64) *int64 {
 	return &value
 }
 
-func percentValue(value int64) float64 {
+// percentPointer возвращает nil для blank-значений DCGM, чтобы отличать
+// "нет данных" от нуля.
+func percentPointer(value int64) *float64 {
 	parsed := int64Value(value)
 	if parsed == nil || *parsed < 0 || *parsed > 100 {
-		return 0
-	}
-	return float64(*parsed)
-}
-
-func percentPointer(value int64) *float64 {
-	parsed := percentValue(value)
-	if parsed < 0 {
 		return nil
 	}
-	return &parsed
+	result := float64(*parsed)
+	return &result
 }
 
 func uint64Pointer(value int64) *float64 {
@@ -392,27 +433,28 @@ func ratioPointer(value float64) *float64 {
 	return &value
 }
 
-func temperatureValue(value int64) float64 {
+func temperaturePointer(value int64) *float64 {
 	parsed := int64Value(value)
 	if parsed == nil || *parsed < 0 || *parsed > 150 {
-		return 0
+		return nil
 	}
-	return float64(*parsed)
+	result := float64(*parsed)
+	return &result
 }
 
-func wattsValue(value float64) float64 {
+func powerDrawPointer(value float64) *float64 {
 	if math.IsNaN(value) || math.IsInf(value, 0) || value < 0 || value > 1000000 {
-		return 0
-	}
-	return value
-}
-
-func wattsPointer(value float64) *float64 {
-	value = wattsValue(value)
-	if value <= 0 {
 		return nil
 	}
 	return &value
+}
+
+func wattsPointer(value float64) *float64 {
+	parsed := powerDrawPointer(value)
+	if parsed == nil || *parsed <= 0 {
+		return nil
+	}
+	return parsed
 }
 
 func validDCGMString(value string) string {

@@ -53,11 +53,10 @@ func (s *Server) Shutdown(ctx context.Context) error {
 
 func (s *Server) metricsHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Convert the internal high-frequency samples into scrape-window peaks
-		// immediately before the registry is gathered.
-		if err := s.exporter.FlushPeaks(); err != nil {
-			s.logger.Warn("failed to flush peak utilization before scrape", "error", err)
-		}
+		// Перед сбором registry публикуем накопленную с прошлого скрейпа
+		// оконную статистику (*_max, *_avg) и начинаем новое окно.
+		// Окно сбрасывается при каждом обращении.
+		s.exporter.FlushWindow()
 		s.handler.ServeHTTP(w, r)
 	}
 }

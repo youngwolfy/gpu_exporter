@@ -2,6 +2,7 @@ package main
 
 import "github.com/prometheus/client_golang/prometheus"
 
+// Metrics содержит все экспортируемые серии.
 type Metrics struct {
 	GPUUtilization    *prometheus.GaugeVec
 	GPUMemoryFree     *prometheus.GaugeVec
@@ -20,11 +21,18 @@ type Metrics struct {
 	GPUProfSMMax      *prometheus.GaugeVec
 	GPUProfDRAMMax    *prometheus.GaugeVec
 	GPUProfTensorMax  *prometheus.GaugeVec
+	GPUUtilizationAvg *prometheus.GaugeVec
+	GPUMemoryCopyAvg  *prometheus.GaugeVec
+	GPUMemoryUsedAvg  *prometheus.GaugeVec
+	GPUPowerDrawAvg   *prometheus.GaugeVec
+	GPUTemperatureAvg *prometheus.GaugeVec
+	GPUProfSMAvg      *prometheus.GaugeVec
+	GPUProfDRAMAvg    *prometheus.GaugeVec
+	GPUProfTensorAvg  *prometheus.GaugeVec
 	GPUThrottleReason *prometheus.GaugeVec
 	GPUProfSMActive   *prometheus.GaugeVec
 	GPUProfDRAMActive *prometheus.GaugeVec
 	GPUProfTensorPipe *prometheus.GaugeVec
-	GPUProcesses      *prometheus.GaugeVec
 	GPUDriverVersion  *prometheus.GaugeVec
 	GPUCudaVersion    *prometheus.GaugeVec
 	GPURequestCount   *prometheus.CounterVec
@@ -100,6 +108,38 @@ func NewMetrics(reg prometheus.Registerer) *Metrics {
 			Name: "gpu_prof_pipe_tensor_active_ratio_max",
 			Help: "Peak DCGM_FI_PROF_PIPE_TENSOR_ACTIVE ratio between Prometheus scrapes.",
 		}, gpuLabels()),
+		GPUUtilizationAvg: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Name: "gpu_utilization_percent_avg",
+			Help: "Average GPU utilization percentage between Prometheus scrapes.",
+		}, gpuLabels()),
+		GPUMemoryCopyAvg: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Name: "gpu_memory_copy_utilization_percent_avg",
+			Help: "Average memory copy utilization percentage between Prometheus scrapes.",
+		}, gpuLabels()),
+		GPUMemoryUsedAvg: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Name: "gpu_framebuffer_memory_used_percent_avg",
+			Help: "Average framebuffer memory used percentage between Prometheus scrapes.",
+		}, gpuLabels()),
+		GPUPowerDrawAvg: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Name: "gpu_power_draw_watts_avg",
+			Help: "Average GPU power draw in watts between Prometheus scrapes.",
+		}, gpuLabels()),
+		GPUTemperatureAvg: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Name: "gpu_temperature_celsius_avg",
+			Help: "Average GPU temperature in Celsius between Prometheus scrapes.",
+		}, gpuLabels()),
+		GPUProfSMAvg: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Name: "gpu_prof_sm_active_ratio_avg",
+			Help: "Average DCGM_FI_PROF_SM_ACTIVE ratio between Prometheus scrapes.",
+		}, gpuLabels()),
+		GPUProfDRAMAvg: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Name: "gpu_prof_dram_active_ratio_avg",
+			Help: "Average DCGM_FI_PROF_DRAM_ACTIVE ratio between Prometheus scrapes.",
+		}, gpuLabels()),
+		GPUProfTensorAvg: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Name: "gpu_prof_pipe_tensor_active_ratio_avg",
+			Help: "Average DCGM_FI_PROF_PIPE_TENSOR_ACTIVE ratio between Prometheus scrapes.",
+		}, gpuLabels()),
 		GPUThrottleReason: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "gpu_clock_throttle_reasons",
 			Help: "DCGM_FI_DEV_CLOCK_THROTTLE_REASONS current clock throttle reason bitmask.",
@@ -115,10 +155,6 @@ func NewMetrics(reg prometheus.Registerer) *Metrics {
 		GPUProfTensorPipe: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "gpu_prof_pipe_tensor_active_ratio",
 			Help: "DCGM_FI_PROF_PIPE_TENSOR_ACTIVE ratio of time the tensor pipe was active.",
-		}, gpuLabels()),
-		GPUProcesses: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_processes_count",
-			Help: "Number of GPU processes when available from DCGM.",
 		}, gpuLabels()),
 		GPUDriverVersion: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "gpu_driver_version_info",
@@ -152,11 +188,18 @@ func NewMetrics(reg prometheus.Registerer) *Metrics {
 		m.GPUProfSMMax,
 		m.GPUProfDRAMMax,
 		m.GPUProfTensorMax,
+		m.GPUUtilizationAvg,
+		m.GPUMemoryCopyAvg,
+		m.GPUMemoryUsedAvg,
+		m.GPUPowerDrawAvg,
+		m.GPUTemperatureAvg,
+		m.GPUProfSMAvg,
+		m.GPUProfDRAMAvg,
+		m.GPUProfTensorAvg,
 		m.GPUThrottleReason,
 		m.GPUProfSMActive,
 		m.GPUProfDRAMActive,
 		m.GPUProfTensorPipe,
-		m.GPUProcesses,
 		m.GPUDriverVersion,
 		m.GPUCudaVersion,
 		m.GPURequestCount,
