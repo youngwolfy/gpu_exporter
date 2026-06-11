@@ -1,0 +1,42 @@
+# Пример systemd-юнита для запуска gpu-exporter на хосте (bare metal).
+# Требует наличия libdcgm.so.4 на хосте.
+#
+# Установка:
+#   cp gpu-exporter /usr/local/bin/
+#   cp examples/systemd/gpu-exporter.service /etc/systemd/system/
+#   systemctl daemon-reload && systemctl enable --now gpu-exporter
+
+[Unit]
+Description=GPU metrics exporter (DCGM)
+After=local-fs.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/gpu-exporter
+Restart=on-failure
+RestartSec=5s
+
+# Все настройки — через переменные окружения (показаны значения по умолчанию):
+#Environment=GPU_EXPORTER_ADDR=127.0.0.1:9990
+#Environment=GPU_EXPORTER_SCRAPE_INTERVAL=100ms
+#Environment=GPU_EXPORTER_ACTIVE_THRESHOLD=1.0
+#Environment=GPU_EXPORTER_MIN_REQUEST_TIME=50ms
+#Environment=GPU_EXPORTER_DCGM_MODE=embedded
+#Environment=GPU_EXPORTER_LOG_LEVEL=info
+
+# Если libdcgm.so.4 установлена в нестандартный путь:
+#Environment=LD_LIBRARY_PATH=/usr/local/dcgm/lib64
+
+# Embedded DCGM обычно запускают от root: ему нужен доступ к /dev/nvidia*,
+# а профилирующие метрики (gpu_prof_*) без root недоступны. Если достаточно
+# базовых метрик и права на устройства позволяют, можно выделить пользователя:
+#User=gpu-exporter
+#Group=gpu-exporter
+
+# Минимальный hardening, совместимый со старыми версиями systemd.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

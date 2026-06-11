@@ -1,0 +1,21 @@
+services:
+  gpu-exporter:
+    image: gpu-exporter:latest
+    build:
+      context: ../..
+      dockerfile: examples/docker/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:9990:9990"
+
+    # Нужен только для профилирующих метрик (gpu_prof_*).
+    cap_add:
+      - SYS_ADMIN
+
+    runtime: nvidia
+
+    environment:
+      GPU_EXPORTER_LOG_LEVEL: info
+      #GPU_EXPORTER_SCRAPE_INTERVAL: 100ms
+      #GPU_EXPORTER_ACTIVE_THRESHOLD: "1.0"
+      #GPU_EXPORTER_MIN_REQUEST_TIME: 50ms

@@ -19,3 +19,6 @@ coverage.out
 *~
 .DS_Store
 Thumbs.db
+
+# Release artifacts
+dist/

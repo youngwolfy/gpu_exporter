@@ -1,0 +1,19 @@
+// Пример конфигурации Grafana Alloy для опроса gpu-exporter.
+//
+// ВАЖНО: окно агрегации (*_max / *_avg) сбрасывается при каждом запросе
+// /metrics, поэтому экспортер должен опрашивать РОВНО ОДИН агент.
+prometheus.scrape "gpu_exporter" {
+	targets = [{"__address__" = "127.0.0.1:9990"}]
+
+	job_name = "gpu-exporter"
+	scrape_interval = "5s"
+	scrape_timeout  = "3s"
+
+	forward_to = [prometheus.remote_write.default.receiver]
+}
+
+prometheus.remote_write "default" {
+	endpoint {
+		url = "http://prometheus.example.local:9090/api/v1/write"
+	}
+}
