@@ -128,6 +128,33 @@ GPU_EXPORTER_ADDR=0.0.0.0:9990 GPU_EXPORTER_LOG_LEVEL=debug go run .
 - [`examples/docker/Dockerfile`](examples/docker/Dockerfile) — контейнерный образ с DCGM внутри; на хосте нужны только драйвер NVIDIA и NVIDIA Container Toolkit.
 - [`examples/docker/compose.yaml`](examples/docker/compose.yaml) — запуск того же образа через Docker Compose, включая вариант с готовым образом для окружений без доступа в Интернет.
 
+### Docker-образ для офлайн-установки
+
+Релиз `0.3.0` для закрытого контура состоит из двух архивов:
+
+- `dist/gpu-exporter-image-0.3.0-cuda12.tar.gz`
+- `dist/gpu-exporter-image-0.3.0-cuda13.tar.gz`
+
+Единственное намеренное отличие между ними — runtime-пакет DCGM: `datacenter-gpu-manager-4-cuda12` или `datacenter-gpu-manager-4-cuda13`. Оба варианта ставятся с recommended-пакетами. Это важно для DCGM-модулей, которые не входят в open-source часть DCGM; без них DCGM может отвечать ошибкой вида `This request is serviced by a module of DCGM that is not currently loaded`.
+
+На машине с Интернетом и Docker соберите оба архива одной командой:
+
+```bash
+./scripts/build-offline-images.sh
+```
+
+На закрытом сервере ничего скачивать или устанавливать не нужно. Перенесите нужный архив и загрузите образ:
+
+```bash
+docker load -i gpu-exporter-image-0.3.0-cuda12.tar.gz
+docker run -d --name gpu-exporter --restart unless-stopped \
+  --gpus all --cap-add SYS_ADMIN \
+  -p 127.0.0.1:9990:9990 \
+  gpu-exporter:0.3.0-cuda12
+```
+
+Для хоста с драйвером `570.133.20` и CUDA `12.8` нужен образ `cuda12`. Для хостов, где `nvidia-smi` показывает CUDA `13.x`, собирайте и загружайте образ `cuda13`. DCGM на хосте в Docker-сценарии не обязателен: экспортер по умолчанию использует embedded DCGM внутри контейнера, а NVIDIA Container Toolkit прокидывает драйверные библиотеки с хоста.
+
 ### Разработка
 
 ```bash
@@ -263,6 +290,33 @@ The [`examples/`](examples/) directory contains ready-to-adapt configs:
 - [`examples/systemd/gpu-exporter.service`](examples/systemd/gpu-exporter.service) — systemd unit for bare-metal installs; requires `libdcgm.so.4` on the host.
 - [`examples/docker/Dockerfile`](examples/docker/Dockerfile) — container image with DCGM bundled inside; the host only needs the NVIDIA driver and the NVIDIA Container Toolkit.
 - [`examples/docker/compose.yaml`](examples/docker/compose.yaml) — the same image run via Docker Compose, including a prebuilt-image option for air-gapped environments.
+
+### Docker Image for Air-Gapped Installation
+
+The `0.3.0` air-gapped release consists of two archives:
+
+- `dist/gpu-exporter-image-0.3.0-cuda12.tar.gz`
+- `dist/gpu-exporter-image-0.3.0-cuda13.tar.gz`
+
+The only intentional difference between them is the DCGM runtime package: `datacenter-gpu-manager-4-cuda12` or `datacenter-gpu-manager-4-cuda13`. Both variants are installed with recommended packages. This matters for DCGM modules that are not part of the open-source DCGM package set; without them DCGM can return errors such as `This request is serviced by a module of DCGM that is not currently loaded`.
+
+On an Internet-connected Docker build machine, create both archives with:
+
+```bash
+./scripts/build-offline-images.sh
+```
+
+On the air-gapped host, do not download or install anything. Transfer the matching archive and load the image:
+
+```bash
+docker load -i gpu-exporter-image-0.3.0-cuda12.tar.gz
+docker run -d --name gpu-exporter --restart unless-stopped \
+  --gpus all --cap-add SYS_ADMIN \
+  -p 127.0.0.1:9990:9990 \
+  gpu-exporter:0.3.0-cuda12
+```
+
+For a host with driver `570.133.20` and CUDA `12.8`, use the `cuda12` image. For hosts where `nvidia-smi` reports CUDA `13.x`, build and load the `cuda13` image. Host-side DCGM is not required for the Docker path: by default, the exporter uses embedded DCGM inside the container, while NVIDIA Container Toolkit mounts the host driver libraries into the container.
 
 ### Development
 

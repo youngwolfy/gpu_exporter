@@ -6,11 +6,12 @@
 #
 # Сборка и запуск:
 #
-#   docker build -t gpu-exporter -f examples/docker/Dockerfile .
+#   docker build --build-arg DCGM_CUDA_MAJOR=12 \
+#     -t gpu-exporter:0.3.0-cuda12 -f examples/docker/Dockerfile .
 #   docker run -d --name gpu-exporter --restart unless-stopped \
 #     --gpus all --cap-add SYS_ADMIN \
 #     -p 127.0.0.1:9990:9990 \
-#     gpu-exporter
+#     gpu-exporter:0.3.0-cuda12
 #
 # --cap-add SYS_ADMIN нужен только для профилирующих метрик (gpu_prof_*);
 # без него экспортер сам откатится на базовые поля.
@@ -33,13 +34,16 @@ RUN go build -trimpath -ldflags="-s -w" -o /gpu-exporter .
 
 FROM debian:bookworm-slim
 
-# В runtime-слое нужна libdcgm.so.4 с модулями (вариант -cuda12 включает
-# профилирующий модуль; если prof-метрики не нужны, хватит -core).
+ARG DCGM_CUDA_MAJOR=12
+
+# В runtime-слое нужна libdcgm.so.4 с модулями. NVIDIA рекомендует
+# устанавливать CUDA-specific DCGM-пакет вместе с recommended-пакетами:
+# они добавляют закрытые DCGM-модули, включая часть profiling-функциональности.
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl \
     && curl -fsSL https://developer.download.nvidia.com/compute/cuda/repos/debian12/x86_64/cuda-keyring_1.1-1_all.deb -o /tmp/cuda-keyring.deb \
     && dpkg -i /tmp/cuda-keyring.deb && rm /tmp/cuda-keyring.deb \
     && apt-get update \
-    && apt-get install -y --no-install-recommends datacenter-gpu-manager-4-cuda12 \
+    && apt-get install -y --install-recommends "datacenter-gpu-manager-4-cuda${DCGM_CUDA_MAJOR}" \
     && apt-get purge -y curl && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/*
 

@@ -1,9 +1,12 @@
 services:
   gpu-exporter:
-    image: gpu-exporter:latest
+    image: gpu-exporter:0.3.0-cuda12
     build:
       context: ../..
       dockerfile: examples/docker/Dockerfile
+      args:
+        # 12 для хостов с CUDA 12.x, 13 для хостов с CUDA 13.x.
+        DCGM_CUDA_MAJOR: "12"
     restart: unless-stopped
     ports:
       - "127.0.0.1:9990:9990"
