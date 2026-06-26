@@ -7,11 +7,11 @@
 # Сборка и запуск:
 #
 #   docker build --build-arg DCGM_CUDA_MAJOR=12 \
-#     -t gpu-exporter:0.3.0-cuda12 -f examples/docker/Dockerfile .
+#     -t gpu-exporter:0.4.0-cuda12 -f examples/docker/Dockerfile .
 #   docker run -d --name gpu-exporter --restart unless-stopped \
 #     --gpus all --cap-add SYS_ADMIN \
 #     -p 127.0.0.1:9990:9990 \
-#     gpu-exporter:0.3.0-cuda12
+#     gpu-exporter:0.4.0-cuda12
 #
 # --cap-add SYS_ADMIN нужен только для профилирующих метрик (gpu_prof_*);
 # без него экспортер сам откатится на базовые поля.

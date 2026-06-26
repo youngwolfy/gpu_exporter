@@ -110,8 +110,14 @@ GPU_EXPORTER_ADDR=0.0.0.0:9990 GPU_EXPORTER_LOG_LEVEL=debug go run .
 - `gpu_temperature_celsius`
 - `gpu_memory_used_bytes`
 - `gpu_request_count_total`
+- `gpu_active_seconds_total`
+- `gpu_utilization_weighted_seconds_total`
+- `gpu_tensor_active_weighted_seconds_total`
+- `gpu_energy_joules_total`
 
 Быстро меняющиеся метрики имеют варианты `_max` (пик) и `_avg` (среднее). Они считаются по внутренним 100мс-сэмплам, накопленным между внешними скрейпами, поэтому короткие всплески нагрузки не теряются даже при интервале опроса 5–15с. Сама `gpu_utilization_percent` — тоже пиковое значение (историческое имя).
+
+Интегральные counter-метрики (`gpu_active_seconds_total`, `gpu_utilization_weighted_seconds_total`, `gpu_sm_active_weighted_seconds_total`, `gpu_dram_active_weighted_seconds_total`, `gpu_tensor_active_weighted_seconds_total`, `gpu_energy_joules_total`) предназначены для отчётов за период. Например, active hours считаются как `increase(gpu_active_seconds_total[$__range]) / 3600`, эквивалентные GPU-часы при 100% utilization — как `increase(gpu_utilization_weighted_seconds_total[$__range]) / 3600`, а энергия в kWh — как `increase(gpu_energy_joules_total[$__range]) / 3600000`.
 
 **Важно:** окно агрегации сбрасывается при каждом запросе `/metrics`, поэтому экспортер должен опрашивать ровно один скрейпер. Второй скрейпер (HA-пара Prometheus, ручной `curl` при отладке) молча украдёт окно у первого.
 
@@ -124,16 +130,17 @@ GPU_EXPORTER_ADDR=0.0.0.0:9990 GPU_EXPORTER_LOG_LEVEL=debug go run .
 В каталоге [`examples/`](examples/) лежат готовые к адаптации конфигурации:
 
 - [`examples/alloy/config.alloy`](examples/alloy/config.alloy) — конфигурация скрейпа для Grafana Alloy (интервал 5с, ровно один скрейпер).
+- [`examples/grafana/`](examples/grafana/) — готовые Grafana dashboards: live operations и usage report для CSV-выгрузки.
 - [`examples/systemd/gpu-exporter.service`](examples/systemd/gpu-exporter.service) — systemd-юнит для запуска на хосте; требует `libdcgm.so.4` на хосте.
 - [`examples/docker/Dockerfile`](examples/docker/Dockerfile) — контейнерный образ с DCGM внутри; на хосте нужны только драйвер NVIDIA и NVIDIA Container Toolkit.
 - [`examples/docker/compose.yaml`](examples/docker/compose.yaml) — запуск того же образа через Docker Compose, включая вариант с готовым образом для окружений без доступа в Интернет.
 
 ### Docker-образ для офлайн-установки
 
-Релиз `0.3.0` для закрытого контура состоит из двух архивов:
+Релиз `0.4.0` для закрытого контура состоит из двух архивов:
 
-- `dist/gpu-exporter-image-0.3.0-cuda12.tar.gz`
-- `dist/gpu-exporter-image-0.3.0-cuda13.tar.gz`
+- `dist/gpu-exporter-image-0.4.0-cuda12.tar.gz`
+- `dist/gpu-exporter-image-0.4.0-cuda13.tar.gz`
 
 Единственное намеренное отличие между ними — runtime-пакет DCGM: `datacenter-gpu-manager-4-cuda12` или `datacenter-gpu-manager-4-cuda13`. Оба варианта ставятся с recommended-пакетами. Это важно для DCGM-модулей, которые не входят в open-source часть DCGM; без них DCGM может отвечать ошибкой вида `This request is serviced by a module of DCGM that is not currently loaded`.
 
@@ -146,11 +153,11 @@ GPU_EXPORTER_ADDR=0.0.0.0:9990 GPU_EXPORTER_LOG_LEVEL=debug go run .
 На закрытом сервере ничего скачивать или устанавливать не нужно. Перенесите нужный архив и загрузите образ:
 
 ```bash
-docker load -i gpu-exporter-image-0.3.0-cuda12.tar.gz
+docker load -i gpu-exporter-image-0.4.0-cuda12.tar.gz
 docker run -d --name gpu-exporter --restart unless-stopped \
   --gpus all --cap-add SYS_ADMIN \
   -p 127.0.0.1:9990:9990 \
-  gpu-exporter:0.3.0-cuda12
+  gpu-exporter:0.4.0-cuda12
 ```
 
 Для хоста с драйвером `570.133.20` и CUDA `12.8` нужен образ `cuda12`. Для хостов, где `nvidia-smi` показывает CUDA `13.x`, собирайте и загружайте образ `cuda13`. DCGM на хосте в Docker-сценарии не обязателен: экспортер по умолчанию использует embedded DCGM внутри контейнера, а NVIDIA Container Toolkit прокидывает драйверные библиотеки с хоста.
@@ -273,8 +280,14 @@ Examples of exported metrics:
 - `gpu_temperature_celsius`
 - `gpu_memory_used_bytes`
 - `gpu_request_count_total`
+- `gpu_active_seconds_total`
+- `gpu_utilization_weighted_seconds_total`
+- `gpu_tensor_active_weighted_seconds_total`
+- `gpu_energy_joules_total`
 
 Fast-changing metrics also have `_max` (peak) and `_avg` (average) variants. They are computed over the exporter's internal 100ms samples collected between external scrapes, so short load spikes are not lost even with a 5–15s scrape interval. Note that `gpu_utilization_percent` itself is a peak value (historical naming).
+
+Integral counter metrics (`gpu_active_seconds_total`, `gpu_utilization_weighted_seconds_total`, `gpu_sm_active_weighted_seconds_total`, `gpu_dram_active_weighted_seconds_total`, `gpu_tensor_active_weighted_seconds_total`, `gpu_energy_joules_total`) are meant for period reports. For example, active hours are `increase(gpu_active_seconds_total[$__range]) / 3600`, equivalent 100%-utilization GPU-hours are `increase(gpu_utilization_weighted_seconds_total[$__range]) / 3600`, and energy in kWh is `increase(gpu_energy_joules_total[$__range]) / 3600000`.
 
 **Important:** the aggregation window is reset on every `/metrics` request, so exactly one scraper must poll the exporter. A second scraper (an HA Prometheus pair, manual `curl` during debugging) would silently steal the window from the first one.
 
@@ -287,16 +300,17 @@ If DCGM does not report a value (a blank field), the corresponding series is sim
 The [`examples/`](examples/) directory contains ready-to-adapt configs:
 
 - [`examples/alloy/config.alloy`](examples/alloy/config.alloy) — Grafana Alloy scrape config (5s interval, exactly one scraper).
+- [`examples/grafana/`](examples/grafana/) — ready-to-import Grafana dashboards: live operations and a usage report for CSV exports.
 - [`examples/systemd/gpu-exporter.service`](examples/systemd/gpu-exporter.service) — systemd unit for bare-metal installs; requires `libdcgm.so.4` on the host.
 - [`examples/docker/Dockerfile`](examples/docker/Dockerfile) — container image with DCGM bundled inside; the host only needs the NVIDIA driver and the NVIDIA Container Toolkit.
 - [`examples/docker/compose.yaml`](examples/docker/compose.yaml) — the same image run via Docker Compose, including a prebuilt-image option for air-gapped environments.
 
 ### Docker Image for Air-Gapped Installation
 
-The `0.3.0` air-gapped release consists of two archives:
+The `0.4.0` air-gapped release consists of two archives:
 
-- `dist/gpu-exporter-image-0.3.0-cuda12.tar.gz`
-- `dist/gpu-exporter-image-0.3.0-cuda13.tar.gz`
+- `dist/gpu-exporter-image-0.4.0-cuda12.tar.gz`
+- `dist/gpu-exporter-image-0.4.0-cuda13.tar.gz`
 
 The only intentional difference between them is the DCGM runtime package: `datacenter-gpu-manager-4-cuda12` or `datacenter-gpu-manager-4-cuda13`. Both variants are installed with recommended packages. This matters for DCGM modules that are not part of the open-source DCGM package set; without them DCGM can return errors such as `This request is serviced by a module of DCGM that is not currently loaded`.
 
@@ -309,11 +323,11 @@ On an Internet-connected Docker build machine, create both archives with:
 On the air-gapped host, do not download or install anything. Transfer the matching archive and load the image:
 
 ```bash
-docker load -i gpu-exporter-image-0.3.0-cuda12.tar.gz
+docker load -i gpu-exporter-image-0.4.0-cuda12.tar.gz
 docker run -d --name gpu-exporter --restart unless-stopped \
   --gpus all --cap-add SYS_ADMIN \
   -p 127.0.0.1:9990:9990 \
-  gpu-exporter:0.3.0-cuda12
+  gpu-exporter:0.4.0-cuda12
 ```
 
 For a host with driver `570.133.20` and CUDA `12.8`, use the `cuda12` image. For hosts where `nvidia-smi` reports CUDA `13.x`, build and load the `cuda13` image. Host-side DCGM is not required for the Docker path: by default, the exporter uses embedded DCGM inside the container, while NVIDIA Container Toolkit mounts the host driver libraries into the container.

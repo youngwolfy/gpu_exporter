@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VERSION="${VERSION:-0.3.0}"
+VERSION="${VERSION:-0.4.0}"
 PLATFORM="${PLATFORM:-linux/amd64}"
 IMAGE_NAME="${IMAGE_NAME:-gpu-exporter}"
 OUTPUT_DIR="${OUTPUT_DIR:-dist}"

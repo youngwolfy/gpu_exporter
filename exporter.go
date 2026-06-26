@@ -17,6 +17,7 @@ type Exporter struct {
 	activity *ActivityTracker
 	hostname string
 	logger   *slog.Logger
+	lastSeen map[string]time.Time
 
 	// infoMu защищает lastInfos - список GPU, закешированный последним
 	// collect(). FlushWindow использует кэш вместо повторного
@@ -34,6 +35,7 @@ func NewExporter(cfg Config, client *DCGMClient, metrics *Metrics, hostname stri
 		activity: NewActivityTracker(cfg.ActiveThreshold, cfg.MinRequestTime),
 		hostname: hostname,
 		logger:   logger,
+		lastSeen: make(map[string]time.Time),
 	}
 }
 
@@ -118,6 +120,7 @@ func (e *Exporter) collect() error {
 		infos = append(infos, sample.Info)
 		labels := labelsFor(sample.Info, e.hostname)
 		gpuIndex := sample.Info.Index
+		dtSeconds := e.sampleInterval(gpuIndex, now)
 
 		e.metrics.GPUMemoryFree.With(labels).Set(sample.MemoryFreeBytes)
 		e.metrics.GPUMemoryUsed.With(labels).Set(sample.MemoryUsedBytes)
@@ -125,6 +128,12 @@ func (e *Exporter) collect() error {
 
 		if sample.Utilization != nil {
 			e.window.Observe(gpuIndex, aggUtilization, *sample.Utilization)
+			if dtSeconds > 0 {
+				e.metrics.GPUUtilizationWeightedSeconds.With(labels).Add(percentFraction(*sample.Utilization) * dtSeconds)
+				if *sample.Utilization > e.cfg.ActiveThreshold {
+					e.metrics.GPUActiveSeconds.With(labels).Add(dtSeconds)
+				}
+			}
 
 			if e.activity.Observe(gpuIndex, *sample.Utilization, now) {
 				e.metrics.GPURequestCount.With(labels).Inc()
@@ -137,6 +146,9 @@ func (e *Exporter) collect() error {
 		if sample.PowerDrawWatts != nil {
 			e.metrics.GPUPowerDraw.With(labels).Set(*sample.PowerDrawWatts)
 			e.window.Observe(gpuIndex, aggPowerDraw, *sample.PowerDrawWatts)
+			if dtSeconds > 0 {
+				e.metrics.GPUEnergyJoules.With(labels).Add(*sample.PowerDrawWatts * dtSeconds)
+			}
 		}
 		if sample.MemoryCopyUtil != nil {
 			e.metrics.GPUMemoryCopyUtil.With(labels).Set(*sample.MemoryCopyUtil)
@@ -160,14 +172,23 @@ func (e *Exporter) collect() error {
 		if sample.ProfSMActive != nil {
 			e.metrics.GPUProfSMActive.With(labels).Set(*sample.ProfSMActive)
 			e.window.Observe(gpuIndex, aggProfSM, *sample.ProfSMActive)
+			if dtSeconds > 0 {
+				e.metrics.GPUSMActiveWeightedSeconds.With(labels).Add(ratioFraction(*sample.ProfSMActive) * dtSeconds)
+			}
 		}
 		if sample.ProfDRAMActive != nil {
 			e.metrics.GPUProfDRAMActive.With(labels).Set(*sample.ProfDRAMActive)
 			e.window.Observe(gpuIndex, aggProfDRAM, *sample.ProfDRAMActive)
+			if dtSeconds > 0 {
+				e.metrics.GPUDRAMActiveWeightedSeconds.With(labels).Add(ratioFraction(*sample.ProfDRAMActive) * dtSeconds)
+			}
 		}
 		if sample.ProfTensorActive != nil {
 			e.metrics.GPUProfTensorPipe.With(labels).Set(*sample.ProfTensorActive)
 			e.window.Observe(gpuIndex, aggProfTensor, *sample.ProfTensorActive)
+			if dtSeconds > 0 {
+				e.metrics.GPUTensorWeightedSeconds.With(labels).Add(ratioFraction(*sample.ProfTensorActive) * dtSeconds)
+			}
 		}
 	}
 
@@ -177,4 +198,51 @@ func (e *Exporter) collect() error {
 	e.infoMu.Unlock()
 
 	return nil
+}
+
+func (e *Exporter) sampleInterval(gpuIndex string, now time.Time) float64 {
+	previous, ok := e.lastSeen[gpuIndex]
+	e.lastSeen[gpuIndex] = now
+	if !ok {
+		return 0
+	}
+	elapsed := now.Sub(previous)
+	if elapsed <= 0 {
+		return 0
+	}
+	if elapsed > e.maxSampleGap() {
+		return 0
+	}
+	return elapsed.Seconds()
+}
+
+func (e *Exporter) maxSampleGap() time.Duration {
+	gap := e.cfg.ScrapeInterval * 10
+	if gap < 5*time.Second {
+		return 5 * time.Second
+	}
+	return gap
+}
+
+func percentFraction(value float64) float64 {
+	if value <= 0 {
+		return 0
+	}
+	if value >= 100 {
+		return 1
+	}
+	return value / 100
+}
+
+func ratioFraction(value float64) float64 {
+	if value <= 0 {
+		return 0
+	}
+	if value <= 1 {
+		return value
+	}
+	if value >= 100 {
+		return 1
+	}
+	return value / 100
 }

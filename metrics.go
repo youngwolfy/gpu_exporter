@@ -36,6 +36,13 @@ type Metrics struct {
 	GPUDriverVersion  *prometheus.GaugeVec
 	GPUCudaVersion    *prometheus.GaugeVec
 	GPURequestCount   *prometheus.CounterVec
+
+	GPUActiveSeconds              *prometheus.CounterVec
+	GPUUtilizationWeightedSeconds *prometheus.CounterVec
+	GPUSMActiveWeightedSeconds    *prometheus.CounterVec
+	GPUDRAMActiveWeightedSeconds  *prometheus.CounterVec
+	GPUTensorWeightedSeconds      *prometheus.CounterVec
+	GPUEnergyJoules               *prometheus.CounterVec
 }
 
 func NewMetrics(reg prometheus.Registerer) *Metrics {
@@ -168,6 +175,30 @@ func NewMetrics(reg prometheus.Registerer) *Metrics {
 			Name: "gpu_request_count_total",
 			Help: "Total inferred GPU work requests detected by utilization activity windows.",
 		}, gpuLabels()),
+		GPUActiveSeconds: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "gpu_active_seconds_total",
+			Help: "Total seconds where GPU utilization was above the configured active threshold.",
+		}, gpuLabels()),
+		GPUUtilizationWeightedSeconds: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "gpu_utilization_weighted_seconds_total",
+			Help: "Total GPU utilization fraction-seconds, computed as utilization_percent / 100 * elapsed_seconds.",
+		}, gpuLabels()),
+		GPUSMActiveWeightedSeconds: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "gpu_sm_active_weighted_seconds_total",
+			Help: "Total DCGM SM active ratio-seconds, computed as normalized SM active ratio * elapsed_seconds.",
+		}, gpuLabels()),
+		GPUDRAMActiveWeightedSeconds: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "gpu_dram_active_weighted_seconds_total",
+			Help: "Total DCGM DRAM active ratio-seconds, computed as normalized DRAM active ratio * elapsed_seconds.",
+		}, gpuLabels()),
+		GPUTensorWeightedSeconds: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "gpu_tensor_active_weighted_seconds_total",
+			Help: "Total DCGM tensor pipe active ratio-seconds, computed as normalized tensor pipe active ratio * elapsed_seconds.",
+		}, gpuLabels()),
+		GPUEnergyJoules: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "gpu_energy_joules_total",
+			Help: "Total GPU energy estimate in joules, computed as power_watts * elapsed_seconds.",
+		}, gpuLabels()),
 	}
 
 	reg.MustRegister(
@@ -203,6 +234,12 @@ func NewMetrics(reg prometheus.Registerer) *Metrics {
 		m.GPUDriverVersion,
 		m.GPUCudaVersion,
 		m.GPURequestCount,
+		m.GPUActiveSeconds,
+		m.GPUUtilizationWeightedSeconds,
+		m.GPUSMActiveWeightedSeconds,
+		m.GPUDRAMActiveWeightedSeconds,
+		m.GPUTensorWeightedSeconds,
+		m.GPUEnergyJoules,
 	)
 
 	return m

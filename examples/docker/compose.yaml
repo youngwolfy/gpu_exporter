@@ -1,6 +1,6 @@
 services:
   gpu-exporter:
-    image: gpu-exporter:0.3.0-cuda12
+    image: gpu-exporter:0.4.0-cuda12
     build:
       context: ../..
       dockerfile: examples/docker/Dockerfile
