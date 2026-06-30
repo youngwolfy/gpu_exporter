@@ -15,7 +15,7 @@
       }
     ]
   },
-  "description": "Live technical dashboard for NVIDIA GPU metrics exported by gpu_exporter, including 0.4.0 integral counters.",
+  "description": "Единый дашборд gpu_exporter: оперативное состояние GPU, графики нагрузки и отчётные KPI за выбранный период.",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -25,8 +25,29 @@
   "panels": [
     {
       "id": 1,
+      "type": "text",
+      "title": "Оперативный мониторинг",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 2,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "Текущее состояние GPU, короткие пики нагрузки, память, питание, температура, throttling и profiling-метрики DCGM."
+      },
+      "pluginVersion": "11.0.0"
+    },
+    {
+      "id": 2,
       "type": "stat",
-      "title": "GPU util now",
+      "title": "Утилизация GPU сейчас",
       "description": "",
       "datasource": {
         "type": "prometheus",
@@ -36,7 +57,7 @@
         "h": 4,
         "w": 4,
         "x": 0,
-        "y": 0
+        "y": 2
       },
       "fieldConfig": {
         "defaults": {
@@ -99,9 +120,9 @@
       ]
     },
     {
-      "id": 2,
+      "id": 3,
       "type": "stat",
-      "title": "Memory used now",
+      "title": "Память занята сейчас",
       "description": "",
       "datasource": {
         "type": "prometheus",
@@ -111,7 +132,7 @@
         "h": 4,
         "w": 4,
         "x": 4,
-        "y": 0
+        "y": 2
       },
       "fieldConfig": {
         "defaults": {
@@ -166,9 +187,9 @@
       ]
     },
     {
-      "id": 3,
+      "id": 4,
       "type": "stat",
-      "title": "Temperature now",
+      "title": "Температура сейчас",
       "description": "",
       "datasource": {
         "type": "prometheus",
@@ -178,7 +199,7 @@
         "h": 4,
         "w": 4,
         "x": 8,
-        "y": 0
+        "y": 2
       },
       "fieldConfig": {
         "defaults": {
@@ -239,9 +260,9 @@
       ]
     },
     {
-      "id": 4,
+      "id": 5,
       "type": "stat",
-      "title": "Power draw now",
+      "title": "Потребление сейчас",
       "description": "",
       "datasource": {
         "type": "prometheus",
@@ -251,7 +272,7 @@
         "h": 4,
         "w": 4,
         "x": 12,
-        "y": 0
+        "y": 2
       },
       "fieldConfig": {
         "defaults": {
@@ -304,9 +325,9 @@
       ]
     },
     {
-      "id": 5,
+      "id": 6,
       "type": "stat",
-      "title": "Power limit used",
+      "title": "Доля лимита мощности",
       "description": "",
       "datasource": {
         "type": "prometheus",
@@ -316,7 +337,7 @@
         "h": 4,
         "w": 4,
         "x": 16,
-        "y": 0
+        "y": 2
       },
       "fieldConfig": {
         "defaults": {
@@ -371,9 +392,9 @@
       ]
     },
     {
-      "id": 6,
+      "id": 7,
       "type": "stat",
-      "title": "Throttle bitmask",
+      "title": "Битовая маска throttling",
       "description": "",
       "datasource": {
         "type": "prometheus",
@@ -383,7 +404,7 @@
         "h": 4,
         "w": 4,
         "x": 20,
-        "y": 0
+        "y": 2
       },
       "fieldConfig": {
         "defaults": {
@@ -440,10 +461,10 @@
       ]
     },
     {
-      "id": 7,
+      "id": 8,
       "type": "table",
-      "title": "Driver / CUDA versions",
-      "description": "Info metrics have value 1; version is stored in labels.",
+      "title": "Версии драйвера и CUDA",
+      "description": "Info-метрики имеют значение 1; версия хранится в метках.",
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
@@ -452,7 +473,7 @@
         "h": 4,
         "w": 24,
         "x": 0,
-        "y": 4
+        "y": 6
       },
       "fieldConfig": {
         "defaults": {
@@ -509,10 +530,10 @@
       ]
     },
     {
-      "id": 8,
+      "id": 9,
       "type": "timeseries",
-      "title": "GPU utilization: peak and average",
-      "description": "Peak catches short LLM inference bursts; average shows sustained load.",
+      "title": "Утилизация GPU: пик и среднее",
+      "description": "Пиковая серия ловит короткие всплески LLM-инференса; средняя показывает устойчивую нагрузку.",
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
@@ -521,7 +542,7 @@
         "h": 8,
         "w": 16,
         "x": 0,
-        "y": 8
+        "y": 10
       },
       "fieldConfig": {
         "defaults": {
@@ -589,7 +610,7 @@
           },
           "editorMode": "code",
           "expr": "gpu_utilization_percent{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}",
-          "legendFormat": "{{hostname}} GPU {{gpu_index}} peak",
+          "legendFormat": "{{hostname}} GPU {{gpu_index}} пик",
           "range": true,
           "refId": "A"
         },
@@ -600,17 +621,17 @@
           },
           "editorMode": "code",
           "expr": "gpu_utilization_percent_avg{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}",
-          "legendFormat": "{{hostname}} GPU {{gpu_index}} avg",
+          "legendFormat": "{{hostname}} GPU {{gpu_index}} среднее",
           "range": true,
           "refId": "B"
         }
       ]
     },
     {
-      "id": 9,
+      "id": 10,
       "type": "state-timeline",
-      "title": "Active windows, 5m blocks",
-      "description": "1 means utilization crossed the selected threshold at least once inside a 5 minute block.",
+      "title": "Активные окна, блоки 5 минут",
+      "description": "1 означает, что утилизация хотя бы раз превысила выбранный порог внутри 5-минутного блока.",
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
@@ -619,7 +640,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 8
+        "y": 10
       },
       "fieldConfig": {
         "defaults": {
@@ -674,16 +695,16 @@
           },
           "editorMode": "code",
           "expr": "max_over_time((gpu_utilization_percent{hostname=~\"$hostname\", gpu_index=~\"$gpu\"} > bool $active_threshold)[5m:5s])",
-          "legendFormat": "{{hostname}} GPU {{gpu_index}} active",
+          "legendFormat": "{{hostname}} GPU {{gpu_index}} активность",
           "range": true,
           "refId": "A"
         }
       ]
     },
     {
-      "id": 10,
+      "id": 11,
       "type": "timeseries",
-      "title": "Framebuffer memory",
+      "title": "Память framebuffer",
       "description": "",
       "datasource": {
         "type": "prometheus",
@@ -693,7 +714,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 16
+        "y": 18
       },
       "fieldConfig": {
         "defaults": {
@@ -752,7 +773,7 @@
           },
           "editorMode": "code",
           "expr": "gpu_memory_used_bytes{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}",
-          "legendFormat": "{{hostname}} GPU {{gpu_index}} used bytes",
+          "legendFormat": "{{hostname}} GPU {{gpu_index}} занято bytes",
           "range": true,
           "refId": "A"
         },
@@ -763,16 +784,16 @@
           },
           "editorMode": "code",
           "expr": "gpu_memory_total_bytes{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}",
-          "legendFormat": "{{hostname}} GPU {{gpu_index}} total bytes",
+          "legendFormat": "{{hostname}} GPU {{gpu_index}} всего bytes",
           "range": true,
           "refId": "B"
         }
       ]
     },
     {
-      "id": 11,
+      "id": 12,
       "type": "timeseries",
-      "title": "Memory copy and FB used %",
+      "title": "Копирование памяти и занятая FB-память, %",
       "description": "",
       "datasource": {
         "type": "prometheus",
@@ -782,7 +803,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 16
+        "y": 18
       },
       "fieldConfig": {
         "defaults": {
@@ -842,7 +863,7 @@
           },
           "editorMode": "code",
           "expr": "gpu_memory_copy_utilization_percent_avg{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}",
-          "legendFormat": "{{hostname}} GPU {{gpu_index}} memcopy avg",
+          "legendFormat": "{{hostname}} GPU {{gpu_index}} memcopy среднее",
           "range": true,
           "refId": "A"
         },
@@ -864,17 +885,17 @@
           },
           "editorMode": "code",
           "expr": "gpu_framebuffer_memory_used_percent{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}",
-          "legendFormat": "{{hostname}} GPU {{gpu_index}} FB used",
+          "legendFormat": "{{hostname}} GPU {{gpu_index}} FB занято",
           "range": true,
           "refId": "C"
         }
       ]
     },
     {
-      "id": 12,
+      "id": 13,
       "type": "timeseries",
-      "title": "Power and temperature",
-      "description": "Mixed units panel: power is W, temperature is C. Use for correlation, not a single-axis KPI.",
+      "title": "Питание и температура",
+      "description": "Панель со смешанными единицами: питание в W, температура в C. Используйте для корреляции, не как единый KPI.",
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
@@ -883,7 +904,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 16
+        "y": 18
       },
       "fieldConfig": {
         "defaults": {
@@ -942,7 +963,7 @@
           },
           "editorMode": "code",
           "expr": "gpu_power_draw_watts_avg{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}",
-          "legendFormat": "{{hostname}} GPU {{gpu_index}} power avg W",
+          "legendFormat": "{{hostname}} GPU {{gpu_index}} power среднее W",
           "range": true,
           "refId": "A"
         },
@@ -953,7 +974,7 @@
           },
           "editorMode": "code",
           "expr": "gpu_power_draw_watts_max{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}",
-          "legendFormat": "{{hostname}} GPU {{gpu_index}} power max W",
+          "legendFormat": "{{hostname}} GPU {{gpu_index}} питание максимум W",
           "range": true,
           "refId": "B"
         },
@@ -964,7 +985,7 @@
           },
           "editorMode": "code",
           "expr": "gpu_temperature_celsius_avg{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}",
-          "legendFormat": "{{hostname}} GPU {{gpu_index}} temp avg C",
+          "legendFormat": "{{hostname}} GPU {{gpu_index}} temp среднее C",
           "range": true,
           "refId": "C"
         },
@@ -975,17 +996,17 @@
           },
           "editorMode": "code",
           "expr": "gpu_temperature_celsius_max{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}",
-          "legendFormat": "{{hostname}} GPU {{gpu_index}} temp max C",
+          "legendFormat": "{{hostname}} GPU {{gpu_index}} темп максимум C",
           "range": true,
           "refId": "D"
         }
       ]
     },
     {
-      "id": 13,
+      "id": 14,
       "type": "timeseries",
-      "title": "SM active",
-      "description": "DCGM profiling ratio. If your deployment reports 0..100 instead of 0..1, switch unit to percent.",
+      "title": "Активность SM",
+      "description": "Отношение активности из DCGM profiling. Если ваша установка отдаёт 0..100 вместо 0..1, смените единицу измерения на percent.",
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
@@ -994,7 +1015,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 24
+        "y": 26
       },
       "fieldConfig": {
         "defaults": {
@@ -1054,7 +1075,7 @@
           },
           "editorMode": "code",
           "expr": "gpu_prof_sm_active_ratio_avg{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}",
-          "legendFormat": "{{hostname}} GPU {{gpu_index}} SM avg",
+          "legendFormat": "{{hostname}} GPU {{gpu_index}} SM среднее",
           "range": true,
           "refId": "A"
         },
@@ -1065,17 +1086,17 @@
           },
           "editorMode": "code",
           "expr": "gpu_prof_sm_active_ratio_max{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}",
-          "legendFormat": "{{hostname}} GPU {{gpu_index}} SM max",
+          "legendFormat": "{{hostname}} GPU {{gpu_index}} SM максимум",
           "range": true,
           "refId": "B"
         }
       ]
     },
     {
-      "id": 14,
+      "id": 15,
       "type": "timeseries",
-      "title": "Tensor pipe active",
-      "description": "Useful for LLM inference: shows whether tensor cores are actually active.",
+      "title": "Активность Tensor-ядер",
+      "description": "Полезно для LLM-инференса: показывает, действительно ли активны Tensor-ядра.",
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
@@ -1084,7 +1105,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 24
+        "y": 26
       },
       "fieldConfig": {
         "defaults": {
@@ -1144,7 +1165,7 @@
           },
           "editorMode": "code",
           "expr": "gpu_prof_pipe_tensor_active_ratio_avg{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}",
-          "legendFormat": "{{hostname}} GPU {{gpu_index}} Tensor avg",
+          "legendFormat": "{{hostname}} GPU {{gpu_index}} Tensor среднее",
           "range": true,
           "refId": "A"
         },
@@ -1155,16 +1176,16 @@
           },
           "editorMode": "code",
           "expr": "gpu_prof_pipe_tensor_active_ratio_max{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}",
-          "legendFormat": "{{hostname}} GPU {{gpu_index}} Tensor max",
+          "legendFormat": "{{hostname}} GPU {{gpu_index}} Tensor максимум",
           "range": true,
           "refId": "B"
         }
       ]
     },
     {
-      "id": 15,
+      "id": 16,
       "type": "timeseries",
-      "title": "DRAM active",
+      "title": "Активность DRAM",
       "description": "",
       "datasource": {
         "type": "prometheus",
@@ -1174,7 +1195,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 24
+        "y": 26
       },
       "fieldConfig": {
         "defaults": {
@@ -1234,7 +1255,7 @@
           },
           "editorMode": "code",
           "expr": "gpu_prof_dram_active_ratio_avg{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}",
-          "legendFormat": "{{hostname}} GPU {{gpu_index}} DRAM avg",
+          "legendFormat": "{{hostname}} GPU {{gpu_index}} DRAM среднее",
           "range": true,
           "refId": "A"
         },
@@ -1245,17 +1266,17 @@
           },
           "editorMode": "code",
           "expr": "gpu_prof_dram_active_ratio_max{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}",
-          "legendFormat": "{{hostname}} GPU {{gpu_index}} DRAM max",
+          "legendFormat": "{{hostname}} GPU {{gpu_index}} DRAM максимум",
           "range": true,
           "refId": "B"
         }
       ]
     },
     {
-      "id": 16,
+      "id": 17,
       "type": "timeseries",
-      "title": "Requests per hour, inferred",
-      "description": "Derived from utilization activity windows, not app-level request IDs.",
+      "title": "Активные окна в час, оценка",
+      "description": "Рассчитано по окнам активности утилизации GPU, а не по request ID уровня приложения.",
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
@@ -1264,7 +1285,7 @@
         "h": 7,
         "w": 8,
         "x": 0,
-        "y": 32
+        "y": 34
       },
       "fieldConfig": {
         "defaults": {
@@ -1323,17 +1344,17 @@
           },
           "editorMode": "code",
           "expr": "increase(gpu_request_count_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[1h])",
-          "legendFormat": "{{hostname}} GPU {{gpu_index}} inferred windows/hour",
+          "legendFormat": "{{hostname}} GPU {{gpu_index}} активные окна/час",
           "range": true,
           "refId": "A"
         }
       ]
     },
     {
-      "id": 17,
+      "id": 18,
       "type": "timeseries",
-      "title": "Tensor / SM active ratio",
-      "description": "Coarse indicator of tensor pipe use relative to SM activity.",
+      "title": "Отношение активности Tensor к SM",
+      "description": "Грубый индикатор использования Tensor-ядер относительно активности SM.",
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
@@ -1342,7 +1363,7 @@
         "h": 7,
         "w": 8,
         "x": 8,
-        "y": 32
+        "y": 34
       },
       "fieldConfig": {
         "defaults": {
@@ -1408,10 +1429,10 @@
       ]
     },
     {
-      "id": 18,
+      "id": 19,
       "type": "timeseries",
-      "title": "Clock throttle reasons",
-      "description": "0 is normal. Non-zero values are DCGM throttle reason bitmasks.",
+      "title": "Причины clock throttling",
+      "description": "0 — норма. Ненулевые значения — битовая маска причин throttling из DCGM.",
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
@@ -1420,7 +1441,7 @@
         "h": 7,
         "w": 8,
         "x": 16,
-        "y": 32
+        "y": 34
       },
       "fieldConfig": {
         "defaults": {
@@ -1486,10 +1507,10 @@
       ]
     },
     {
-      "id": 19,
+      "id": 20,
       "type": "stat",
-      "title": "Active hours, selected range",
-      "description": "Counter-based active GPU time over the selected Grafana range.",
+      "title": "Активные часы за выбранный период",
+      "description": "Активное время GPU за выбранный диапазон Grafana, рассчитанное по счётчику.",
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
@@ -1498,7 +1519,7 @@
         "h": 5,
         "w": 6,
         "x": 0,
-        "y": 39
+        "y": 41
       },
       "fieldConfig": {
         "defaults": {
@@ -1552,10 +1573,10 @@
       ]
     },
     {
-      "id": 20,
+      "id": 21,
       "type": "stat",
-      "title": "Equivalent GPU-hours, selected range",
-      "description": "100%-utilization equivalent GPU-hours over the selected range.",
+      "title": "Эквивалент GPU-часов за выбранный период",
+      "description": "Эквивалент GPU-часов при 100% утилизации за выбранный диапазон.",
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
@@ -1564,7 +1585,7 @@
         "h": 5,
         "w": 6,
         "x": 6,
-        "y": 39
+        "y": 41
       },
       "fieldConfig": {
         "defaults": {
@@ -1618,10 +1639,10 @@
       ]
     },
     {
-      "id": 21,
+      "id": 22,
       "type": "stat",
-      "title": "Tensor active hours, selected range",
-      "description": "Tensor pipe ratio-seconds converted to equivalent hours.",
+      "title": "Часы активности Tensor за выбранный период",
+      "description": "Ratio-seconds Tensor-ядер, пересчитанные в эквивалентные часы.",
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
@@ -1630,7 +1651,7 @@
         "h": 5,
         "w": 6,
         "x": 12,
-        "y": 39
+        "y": 41
       },
       "fieldConfig": {
         "defaults": {
@@ -1684,10 +1705,10 @@
       ]
     },
     {
-      "id": 22,
+      "id": 23,
       "type": "stat",
-      "title": "Energy, selected range",
-      "description": "Estimated GPU energy from power draw integral.",
+      "title": "Энергия за выбранный период",
+      "description": "Оценка энергии GPU по интегралу потребления мощности.",
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
@@ -1696,7 +1717,1184 @@
         "h": 5,
         "w": 6,
         "x": 18,
-        "y": 39
+        "y": 41
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "kwatth",
+          "min": 0,
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.0.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "increase(gpu_energy_joules_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range]) / 3600000",
+          "legendFormat": "{{hostname}} GPU {{gpu_index}}",
+          "range": true,
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 24,
+      "type": "text",
+      "title": "Отчёт за выбранный период",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 24,
+        "x": 0,
+        "y": 47
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "KPI считаются за текущий диапазон времени Grafana (`${__range}`). Для выгрузки используйте панель **Сводная таблица KPI по GPU** через Grafana Panel Inspector."
+      },
+      "pluginVersion": "11.0.0"
+    },
+    {
+      "id": 25,
+      "type": "text",
+      "title": "Как читать этот отчёт",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 24,
+        "x": 0,
+        "y": 50
+      },
+      "options": {
+        "content": "Панели отчёта агрегируются за выбранный диапазон времени `${__range}`. Начиная с версии 0.4.0 KPI за период используют интегральные счётчики Prometheus, поэтому месячные отчёты не зависят от тяжёлых subquery для активного времени, эквивалентных GPU-часов, часов активности Tensor и энергии. Для LLM-инференса календарная средняя утилизация намеренно не является единственным KPI: смотрите вместе активное время, активные часы, среднюю утилизацию во время активности, peak/P95, оценку активных окон и активность Tensor.",
+        "mode": "markdown"
+      },
+      "pluginVersion": "11.0.0"
+    },
+    {
+      "id": 26,
+      "type": "stat",
+      "title": "Активное время",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 54
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "decimals": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.0.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "increase(gpu_active_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range]) / $__range_s * 100",
+          "legendFormat": "{{hostname}} GPU {{gpu_index}}",
+          "range": true,
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 27,
+      "type": "stat",
+      "title": "Активные часы",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 54
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "unit": "h",
+          "decimals": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.0.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "increase(gpu_active_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range]) / 3600",
+          "legendFormat": "{{hostname}} GPU {{gpu_index}}",
+          "range": true,
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 28,
+      "type": "stat",
+      "title": "Средняя утилизация во время активности",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 54
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "decimals": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.0.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "increase(gpu_utilization_weighted_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range]) / clamp_min(increase(gpu_active_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range]), 1) * 100",
+          "legendFormat": "{{hostname}} GPU {{gpu_index}}",
+          "range": true,
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 29,
+      "type": "stat",
+      "title": "Оценка активных окон",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 54
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "unit": "short",
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.0.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "increase(gpu_request_count_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range])",
+          "legendFormat": "{{hostname}} GPU {{gpu_index}}",
+          "range": true,
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 30,
+      "type": "stat",
+      "title": "Пиковая утилизация",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 54
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "decimals": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.0.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "max_over_time(gpu_utilization_percent{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range])",
+          "legendFormat": "{{hostname}} GPU {{gpu_index}}",
+          "range": true,
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 31,
+      "type": "stat",
+      "title": "P95 утилизации",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 54
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "decimals": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.0.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "quantile_over_time(0.95, gpu_utilization_percent{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range])",
+          "legendFormat": "{{hostname}} GPU {{gpu_index}}",
+          "range": true,
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 32,
+      "type": "table",
+      "title": "Сводная таблица KPI по GPU",
+      "description": "Длинная таблица на основе счётчиков: одна строка на сервер, GPU и KPI. Для управленческих отчётов экспортируйте CSV именно из этой панели.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 12,
+        "w": 24,
+        "x": 0,
+        "y": 58
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true
+      },
+      "pluginVersion": "11.0.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "label_replace((increase(gpu_utilization_weighted_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range]) / $__range_s * 100), \"kpi\", \"calendar_avg_util_percent\", \"hostname\", \".*\")\nor\nlabel_replace((increase(gpu_active_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range]) / $__range_s * 100), \"kpi\", \"active_time_percent\", \"hostname\", \".*\")\nor\nlabel_replace((increase(gpu_active_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range]) / 3600), \"kpi\", \"active_hours\", \"hostname\", \".*\")\nor\nlabel_replace((increase(gpu_utilization_weighted_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range]) / 3600), \"kpi\", \"equivalent_gpu_hours_100pct\", \"hostname\", \".*\")\nor\nlabel_replace((increase(gpu_utilization_weighted_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range]) / clamp_min(increase(gpu_active_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range]), 1) * 100), \"kpi\", \"avg_util_while_active_percent\", \"hostname\", \".*\")\nor\nlabel_replace((max_over_time(gpu_utilization_percent{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range])), \"kpi\", \"peak_util_percent\", \"hostname\", \".*\")\nor\nlabel_replace((quantile_over_time(0.95, gpu_utilization_percent{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range])), \"kpi\", \"p95_util_percent\", \"hostname\", \".*\")\nor\nlabel_replace((increase(gpu_request_count_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range])), \"kpi\", \"inferred_gpu_activity_windows\", \"hostname\", \".*\")\nor\nlabel_replace((increase(gpu_tensor_active_weighted_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range]) / $__range_s), \"kpi\", \"calendar_avg_tensor_active_ratio\", \"hostname\", \".*\")\nor\nlabel_replace((increase(gpu_tensor_active_weighted_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range]) / 3600), \"kpi\", \"tensor_active_hours\", \"hostname\", \".*\")\nor\nlabel_replace((increase(gpu_sm_active_weighted_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range]) / 3600), \"kpi\", \"sm_active_hours\", \"hostname\", \".*\")\nor\nlabel_replace((increase(gpu_dram_active_weighted_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range]) / 3600), \"kpi\", \"dram_active_hours\", \"hostname\", \".*\")\nor\nlabel_replace((max_over_time(gpu_prof_pipe_tensor_active_ratio_max{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range])), \"kpi\", \"max_tensor_active_ratio\", \"hostname\", \".*\")\nor\nlabel_replace((increase(gpu_energy_joules_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range]) / 3600000), \"kpi\", \"energy_kwh\", \"hostname\", \".*\")\nor\nlabel_replace((increase(gpu_energy_joules_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range]) / $__range_s), \"kpi\", \"avg_power_watts\", \"hostname\", \".*\")\nor\nlabel_replace((max_over_time(gpu_power_draw_watts_max{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range])), \"kpi\", \"max_power_watts\", \"hostname\", \".*\")\nor\nlabel_replace((max_over_time(gpu_temperature_celsius_max{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range])), \"kpi\", \"max_temperature_celsius\", \"hostname\", \".*\")\nor\nlabel_replace((max_over_time(gpu_framebuffer_memory_used_percent_max{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range])), \"kpi\", \"max_framebuffer_used_percent\", \"hostname\", \".*\")",
+          "legendFormat": "",
+          "range": false,
+          "refId": "A",
+          "instant": true,
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "id": 33,
+      "type": "table",
+      "title": "Версии драйвера и CUDA",
+      "description": "Info-метрики имеют значение 1; версия хранится в метках.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 0,
+        "y": 70
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true
+      },
+      "pluginVersion": "11.0.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "label_replace(gpu_driver_version_info{hostname=~\"$hostname\"}, \"info\", \"driver\", \"hostname\", \".*\") or label_replace(gpu_cuda_version_info{hostname=~\"$hostname\"}, \"info\", \"cuda\", \"hostname\", \".*\")",
+          "legendFormat": "",
+          "range": false,
+          "refId": "A",
+          "instant": true,
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "id": 34,
+      "type": "stat",
+      "title": "Средняя активность Tensor",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 4,
+        "x": 8,
+        "y": 70
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "unit": "percentunit",
+          "min": 0,
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.0.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "increase(gpu_tensor_active_weighted_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range]) / $__range_s",
+          "legendFormat": "{{hostname}} GPU {{gpu_index}}",
+          "range": true,
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 35,
+      "type": "stat",
+      "title": "Максимальная активность Tensor",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 4,
+        "x": 12,
+        "y": 70
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "unit": "percentunit",
+          "min": 0,
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.0.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "max_over_time(gpu_prof_pipe_tensor_active_ratio_max{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range])",
+          "legendFormat": "{{hostname}} GPU {{gpu_index}}",
+          "range": true,
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 36,
+      "type": "stat",
+      "title": "Среднее потребление",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 4,
+        "x": 16,
+        "y": 70
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "unit": "watt",
+          "decimals": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.0.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "increase(gpu_energy_joules_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range]) / $__range_s",
+          "legendFormat": "{{hostname}} GPU {{gpu_index}}",
+          "range": true,
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 37,
+      "type": "stat",
+      "title": "Максимальная температура",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 4,
+        "x": 20,
+        "y": 70
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "unit": "celsius",
+          "decimals": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.0.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "max_over_time(gpu_temperature_celsius_max{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range])",
+          "legendFormat": "{{hostname}} GPU {{gpu_index}}",
+          "range": true,
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 38,
+      "type": "state-timeline",
+      "title": "Лента активности за выбранный период",
+      "description": "Используйте, чтобы показать рабочие всплески, ночи, выходные и редкий трафик инференса.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 76
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "unit": "short",
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "dark-red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "custom": {
+            "fillOpacity": 70,
+            "lineWidth": 0
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "alignValue": "left",
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "mergeValues": true,
+        "rowHeight": 0.9,
+        "showValue": "never",
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.0.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "max_over_time((gpu_utilization_percent{hostname=~\"$hostname\", gpu_index=~\"$gpu\"} > bool $active_threshold)[5m:5s])",
+          "legendFormat": "{{hostname}} GPU {{gpu_index}} активность",
+          "range": true,
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 39,
+      "type": "stat",
+      "title": "Эквивалент GPU-часов",
+      "description": "Эквивалент GPU-часов при 100% утилизации.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 0,
+        "y": 84
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "h",
+          "min": 0,
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.0.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "increase(gpu_utilization_weighted_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range]) / 3600",
+          "legendFormat": "{{hostname}} GPU {{gpu_index}}",
+          "range": true,
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 40,
+      "type": "stat",
+      "title": "Часы активности SM",
+      "description": "Ratio-seconds активности SM, пересчитанные в эквивалентные часы.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 6,
+        "y": 84
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "h",
+          "min": 0,
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.0.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "increase(gpu_sm_active_weighted_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range]) / 3600",
+          "legendFormat": "{{hostname}} GPU {{gpu_index}}",
+          "range": true,
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 41,
+      "type": "stat",
+      "title": "Часы активности DRAM",
+      "description": "Ratio-seconds активности DRAM, пересчитанные в эквивалентные часы.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 12,
+        "y": 84
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "h",
+          "min": 0,
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.0.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "increase(gpu_dram_active_weighted_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range]) / 3600",
+          "legendFormat": "{{hostname}} GPU {{gpu_index}}",
+          "range": true,
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 42,
+      "type": "stat",
+      "title": "Энергия, kWh",
+      "description": "Оценка энергии GPU за выбранный диапазон.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 18,
+        "y": 84
       },
       "fieldConfig": {
         "defaults": {
@@ -1756,7 +2954,8 @@
     "gpu-exporter",
     "nvidia",
     "dcgm",
-    "operations"
+    "мониторинг",
+    "отчёт"
   ],
   "templating": {
     "list": [
@@ -1768,7 +2967,7 @@
         },
         "hide": 0,
         "includeAll": false,
-        "label": "Datasource",
+        "label": "Источник данных",
         "multi": false,
         "name": "datasource",
         "options": [],
@@ -1791,7 +2990,7 @@
         "definition": "label_values(gpu_utilization_percent, hostname)",
         "hide": 0,
         "includeAll": true,
-        "label": "Host",
+        "label": "Сервер",
         "multi": true,
         "name": "hostname",
         "options": [],
@@ -1833,7 +3032,7 @@
         },
         "hide": 0,
         "includeAll": false,
-        "label": "Active threshold, %",
+        "label": "Порог активности, %",
         "multi": false,
         "name": "active_threshold",
         "options": [
@@ -1873,8 +3072,8 @@
     ]
   },
   "timezone": "browser",
-  "title": "GPU Exporter / Operations",
-  "uid": "gpu-exporter-operations",
-  "version": 2,
+  "title": "GPU Exporter / Мониторинг и отчёт",
+  "uid": "gpu-exporter-dashboard",
+  "version": 3,
   "weekStart": ""
 }

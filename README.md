@@ -130,7 +130,7 @@ GPU_EXPORTER_ADDR=0.0.0.0:9990 GPU_EXPORTER_LOG_LEVEL=debug go run .
 В каталоге [`examples/`](examples/) лежат готовые к адаптации конфигурации:
 
 - [`examples/alloy/config.alloy`](examples/alloy/config.alloy) — конфигурация скрейпа для Grafana Alloy (интервал 5с, ровно один скрейпер).
-- [`examples/grafana/`](examples/grafana/) — готовые Grafana dashboards: live operations и usage report для CSV-выгрузки.
+- [`examples/grafana/`](examples/grafana/) — единый Grafana dashboard для live-мониторинга GPU и отчётных KPI с CSV-выгрузкой.
 - [`examples/systemd/gpu-exporter.service`](examples/systemd/gpu-exporter.service) — systemd-юнит для запуска на хосте; требует `libdcgm.so.4` на хосте.
 - [`examples/docker/Dockerfile`](examples/docker/Dockerfile) — контейнерный образ с DCGM внутри; на хосте нужны только драйвер NVIDIA и NVIDIA Container Toolkit.
 - [`examples/docker/compose.yaml`](examples/docker/compose.yaml) — запуск того же образа через Docker Compose, включая вариант с готовым образом для окружений без доступа в Интернет.
@@ -300,7 +300,7 @@ If DCGM does not report a value (a blank field), the corresponding series is sim
 The [`examples/`](examples/) directory contains ready-to-adapt configs:
 
 - [`examples/alloy/config.alloy`](examples/alloy/config.alloy) — Grafana Alloy scrape config (5s interval, exactly one scraper).
-- [`examples/grafana/`](examples/grafana/) — ready-to-import Grafana dashboards: live operations and a usage report for CSV exports.
+- [`examples/grafana/`](examples/grafana/) — ready-to-import Grafana dashboard for live GPU monitoring and report KPI CSV exports.
 - [`examples/systemd/gpu-exporter.service`](examples/systemd/gpu-exporter.service) — systemd unit for bare-metal installs; requires `libdcgm.so.4` on the host.
 - [`examples/docker/Dockerfile`](examples/docker/Dockerfile) — container image with DCGM bundled inside; the host only needs the NVIDIA driver and the NVIDIA Container Toolkit.
 - [`examples/docker/compose.yaml`](examples/docker/compose.yaml) — the same image run via Docker Compose, including a prebuilt-image option for air-gapped environments.

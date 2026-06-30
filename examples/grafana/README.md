@@ -1,47 +1,40 @@
-# Grafana Dashboards
+# Дашборд Grafana
 
-This directory contains importable Grafana dashboards for `gpu_exporter`.
+В каталоге лежит единый импортируемый dashboard для `gpu_exporter`:
 
-## Dashboards
+- `gpu-exporter.json` — оперативный мониторинг GPU и отчётные KPI за выбранный период.
 
-- `gpu-operations.json` — live technical dashboard for operators.
-- `gpu-usage-report.json` — management-oriented report over the selected time range.
-
-Both dashboards use a Prometheus datasource variable named `datasource` and query
-GPU labels exported by `gpu_exporter`:
+Дашборд использует переменную Prometheus datasource `datasource` и метки,
+которые экспортирует `gpu_exporter`:
 
 - `hostname`
 - `gpu_index`
 - `gpu_name`
 
-The `active_threshold` variable defaults to `5` percent and is used to classify
-GPU activity windows.
+Переменная `active_threshold` по умолчанию равна `5` процентам и используется
+для определения активных окон GPU.
 
-## Import
+## Импорт
 
-1. Open Grafana.
-2. Go to **Dashboards** → **New** → **Import**.
-3. Upload one of the JSON files.
-4. Select the Prometheus datasource.
+1. Откройте Grafana.
+2. Перейдите в **Dashboards** -> **New** -> **Import**.
+3. Загрузите `gpu-exporter.json`.
+4. Выберите Prometheus datasource.
 
-## Report Export
+## Выгрузка отчёта
 
-For monthly or weekly management reports, use `gpu-usage-report.json`.
-In gpu_exporter `0.4.0` and newer, the report uses integral counter metrics
-such as `gpu_active_seconds_total`, `gpu_utilization_weighted_seconds_total`,
-`gpu_tensor_active_weighted_seconds_total`, and `gpu_energy_joules_total`.
+Для недельных и месячных отчётов выставьте нужный диапазон времени, например
+**Last 30 days**, и выгружайте CSV из панели **Сводная таблица KPI по GPU**
+через Grafana Panel Inspector.
 
-Set the dashboard time range, for example **Last 30 days**, then export the
-`GPU usage KPI table, selected range` panel through Grafana Panel Inspector.
-The table intentionally returns one row per `host / GPU / KPI` so the CSV export
-does not depend on Grafana table transformations.
+Начиная с `gpu_exporter` `0.4.0`, отчётные KPI используют интегральные counter
+метрики:
 
-The report does not treat calendar-average utilization as the only KPI. For LLM
-inference, use it together with:
+- `gpu_active_seconds_total`
+- `gpu_utilization_weighted_seconds_total`
+- `gpu_tensor_active_weighted_seconds_total`
+- `gpu_energy_joules_total`
 
-- active time percent
-- active hours
-- average utilization while active
-- peak and P95 utilization
-- inferred GPU activity windows
-- tensor active ratio
+Календарная средняя утилизация не является единственным KPI для LLM-инференса.
+Смотрите её вместе с активным временем, активными часами, средней утилизацией
+во время активности, peak/P95, оценкой активных окон и активностью Tensor.
