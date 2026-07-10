@@ -18,6 +18,7 @@ for cuda_major in 12 13; do
   tmp_archive="${archive}.tmp"
 
   docker build \
+    --pull \
     --platform "${PLATFORM}" \
     --provenance=false \
     --sbom=false \

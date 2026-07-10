@@ -19,11 +19,14 @@
 FROM golang:1.26-bookworm AS build
 
 # Для сборки (CGO) нужны заголовки DCGM.
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl \
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && apt-get install -y --no-install-recommends ca-certificates curl \
     && curl -fsSL https://developer.download.nvidia.com/compute/cuda/repos/debian12/x86_64/cuda-keyring_1.1-1_all.deb -o /tmp/cuda-keyring.deb \
     && dpkg -i /tmp/cuda-keyring.deb && rm /tmp/cuda-keyring.deb \
     && apt-get update \
     && apt-get install -y --no-install-recommends datacenter-gpu-manager-4-dev \
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /src
@@ -39,12 +42,15 @@ ARG DCGM_CUDA_MAJOR=12
 # В runtime-слое нужна libdcgm.so.4 с модулями. NVIDIA рекомендует
 # устанавливать CUDA-specific DCGM-пакет вместе с recommended-пакетами:
 # они добавляют закрытые DCGM-модули, включая часть profiling-функциональности.
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl \
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && apt-get install -y --no-install-recommends ca-certificates curl \
     && curl -fsSL https://developer.download.nvidia.com/compute/cuda/repos/debian12/x86_64/cuda-keyring_1.1-1_all.deb -o /tmp/cuda-keyring.deb \
     && dpkg -i /tmp/cuda-keyring.deb && rm /tmp/cuda-keyring.deb \
     && apt-get update \
     && apt-get install -y --install-recommends "datacenter-gpu-manager-4-cuda${DCGM_CUDA_MAJOR}" \
     && apt-get purge -y curl && apt-get autoremove -y \
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /gpu-exporter /usr/local/bin/gpu-exporter

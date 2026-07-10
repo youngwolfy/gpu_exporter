@@ -28,6 +28,7 @@ func NewServer(cfg Config, exporter *Exporter, gatherer prometheus.Gatherer, log
 
 	mux.HandleFunc("/metrics", server.metricsHandler())
 	mux.HandleFunc("/health", healthHandler)
+	mux.HandleFunc("/ready", server.readyHandler())
 
 	server.httpServer = &http.Server{
 		Addr:              cfg.ListenAddress,
@@ -64,4 +65,17 @@ func (s *Server) metricsHandler() http.HandlerFunc {
 func healthHandler(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte("OK\n"))
+}
+
+func (s *Server) readyHandler() http.HandlerFunc {
+	return func(w http.ResponseWriter, _ *http.Request) {
+		if s.exporter.Ready(time.Now()) {
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("READY\n"))
+			return
+		}
+
+		w.WriteHeader(http.StatusServiceUnavailable)
+		_, _ = w.Write([]byte("NOT READY\n"))
+	}
 }

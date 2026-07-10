@@ -72,9 +72,9 @@ ldd ./gpu-exporter
 | `config.go` | Читает переменные окружения и применяет значения по умолчанию для адреса, интервала сбора, порогов детекции запросов, режима DCGM и уровня логирования. |
 | `dcgm_client.go` | Низкоуровневая интеграция с DCGM. Инициализирует DCGM, находит GPU, кеширует статическую информацию о GPU, создает постоянные DCGM field watchers, читает сэмплы, конвертирует значения DCGM и очищает DCGM-группы при завершении. |
 | `metrics.go` | Описывает все экспортируемые `gpu_`-метрики и их лейблы, затем регистрирует их в отдельном registry. |
-| `exporter.go` | Основной цикл сбора. Периодически читает сэмплы DCGM, обновляет мгновенные метрики, копит оконную статистику, считает выведенные GPU-запросы и публикует оконные метрики при скрейпе `/metrics`. |
+| `exporter.go` | Основной цикл сбора. Периодически читает сэмплы DCGM, обновляет мгновенные метрики, копит оконную статистику, считает выведенные окна активности GPU и публикует оконные метрики при скрейпе `/metrics`. |
 | `tracker.go` | Потокобезопасные хелперы: оконная агрегация (max/avg между скрейпами) и детекция активности/запросов GPU. |
-| `server.go` | HTTP-слой. Экспортирует `/metrics` и `/health`, публикует оконную статистику перед отдачей метрик и поддерживает graceful shutdown. |
+| `server.go` | HTTP-слой. Экспортирует `/metrics`, `/health` и `/ready`, публикует оконную статистику перед отдачей метрик и поддерживает graceful shutdown. |
 
 ### Настройка
 
@@ -99,29 +99,30 @@ GPU_EXPORTER_ADDR=0.0.0.0:9990 GPU_EXPORTER_LOG_LEVEL=debug go run .
 
 Примеры экспортируемых метрик:
 
-- `gpu_utilization_percent`
-- `gpu_memory_copy_utilization_percent`
-- `gpu_framebuffer_memory_used_percent`
-- `gpu_clock_throttle_reasons`
-- `gpu_prof_sm_active_ratio`
-- `gpu_prof_dram_active_ratio`
-- `gpu_prof_pipe_tensor_active_ratio`
-- `gpu_power_draw_watts`
-- `gpu_temperature_celsius`
-- `gpu_memory_used_bytes`
-- `gpu_request_count_total`
-- `gpu_active_seconds_total`
-- `gpu_utilization_weighted_seconds_total`
-- `gpu_tensor_active_weighted_seconds_total`
-- `gpu_energy_joules_total`
+- Utilization/activity: `gpu_utilization_percent`, `gpu_utilization_percent_current`, `gpu_memory_copy_utilization_percent`, `gpu_encoder_utilization_percent`, `gpu_decoder_utilization_percent`, `gpu_activity_windows_total`, `gpu_active_seconds_total`, `gpu_utilization_weighted_seconds_total`.
+- Memory/temperature: `gpu_memory_free_bytes`, `gpu_memory_used_bytes`, `gpu_memory_total_bytes`, `gpu_framebuffer_memory_reserved_bytes`, `gpu_bar1_memory_free_bytes`, `gpu_bar1_memory_used_bytes`, `gpu_bar1_memory_total_bytes`, `gpu_framebuffer_memory_used_percent`, `gpu_temperature_celsius`, `gpu_temperature_max_celsius`, `gpu_memory_temperature_celsius`, `gpu_memory_temperature_max_celsius`.
+- Power/clocks: `gpu_power_draw_watts`, `gpu_power_draw_instant_watts`, `gpu_power_limit_watts`, `gpu_power_enforced_limit_watts`, `gpu_energy_joules_total`, `gpu_energy_estimated_joules_total`, `gpu_sm_clock_hertz`, `gpu_memory_clock_hertz`, `gpu_performance_state`, `gpu_fan_speed_percent`, `gpu_clock_throttle_reasons`, `gpu_clock_event_active`, `gpu_clock_violation_seconds_total`.
+- PCIe/NVLink/reliability: `gpu_pcie_tx_bytes_per_second`, `gpu_pcie_rx_bytes_per_second`, `gpu_pcie_transmit_bytes_per_second`, `gpu_pcie_receive_bytes_per_second`, `gpu_pcie_link_generation`, `gpu_pcie_link_width`, `gpu_pcie_max_link_generation`, `gpu_pcie_max_link_width`, `gpu_pcie_replay_total`, `gpu_nvlink_tx_bytes_per_second`, `gpu_nvlink_rx_bytes_per_second`, `gpu_nvlink_transmit_bytes_per_second`, `gpu_nvlink_receive_bytes_per_second`, `gpu_nvlink_errors_total`, `gpu_xid_last_code`, `gpu_ecc_errors_total`, `gpu_retired_pages_total`, `gpu_retired_pages_pending`, `gpu_remapped_rows_total`, `gpu_row_remap_failure`, `gpu_row_remap_pending`.
+- Profiling: `gpu_prof_graphics_engine_active_ratio`, `gpu_prof_sm_active_ratio`, `gpu_prof_sm_occupancy_ratio`, `gpu_prof_dram_active_ratio`, `gpu_prof_pipe_tensor_active_ratio`, `gpu_prof_pipe_fp64_active_ratio`, `gpu_prof_pipe_fp32_active_ratio`, `gpu_prof_pipe_fp16_active_ratio`, `gpu_prof_pipe_int_active_ratio`, `gpu_prof_pipe_tensor_hmma_active_ratio`, `gpu_prof_pipe_tensor_imma_active_ratio`, `gpu_prof_pipe_tensor_dfma_active_ratio`, `gpu_sm_active_weighted_seconds_total`, `gpu_dram_active_weighted_seconds_total`, `gpu_tensor_active_weighted_seconds_total`.
+- Exporter health: `gpu_exporter_up`, `gpu_exporter_collect_success`, `gpu_exporter_last_success_timestamp_seconds`, `gpu_exporter_collection_duration_seconds`, `gpu_exporter_collection_errors_total`, `gpu_exporter_discovered_gpus`.
 
-Быстро меняющиеся метрики имеют варианты `_max` (пик) и `_avg` (среднее). Они считаются по внутренним 100мс-сэмплам, накопленным между внешними скрейпами, поэтому короткие всплески нагрузки не теряются даже при интервале опроса 5–15с. Сама `gpu_utilization_percent` — тоже пиковое значение (историческое имя).
+Основные GPU-метрики размечаются лейблами `gpu_index`, `gpu_uuid`, `pci_bus_id`, `gpu_name` и `hostname`. Для стабильной идентификации GPU между перезагрузками используйте `gpu_uuid` или `pci_bus_id`, а не только `gpu_index`.
 
-Интегральные counter-метрики (`gpu_active_seconds_total`, `gpu_utilization_weighted_seconds_total`, `gpu_sm_active_weighted_seconds_total`, `gpu_dram_active_weighted_seconds_total`, `gpu_tensor_active_weighted_seconds_total`, `gpu_energy_joules_total`) предназначены для отчётов за период. Например, active hours считаются как `increase(gpu_active_seconds_total[$__range]) / 3600`, эквивалентные GPU-часы при 100% utilization — как `increase(gpu_utilization_weighted_seconds_total[$__range]) / 3600`, а энергия в kWh — как `increase(gpu_energy_joules_total[$__range]) / 3600000`.
+`/health` проверяет, что HTTP-процесс жив. `/ready` возвращает `200`, только если был свежий успешный сбор DCGM и найден хотя бы один GPU; иначе возвращает `503`.
+
+`gpu_activity_windows_total` считает выведенные окна активности GPU по переходам utilization через порог. Старое имя `gpu_request_count_total` оставлено как compatibility alias и не означает реальные application requests.
+
+Быстро меняющиеся метрики имеют варианты `_max` (пик) и `_avg` (среднее). Они считаются по внутренним 100мс-сэмплам, накопленным между внешними скрейпами, поэтому короткие всплески нагрузки не теряются даже при интервале опроса 5–15с. `gpu_utilization_percent_current` показывает последний валидный сэмпл DCGM, а `gpu_utilization_percent` остаётся пиковым значением между скрейпами (историческое имя).
+
+Интегральные counter-метрики (`gpu_active_seconds_total`, `gpu_utilization_weighted_seconds_total`, `gpu_sm_active_weighted_seconds_total`, `gpu_dram_active_weighted_seconds_total`, `gpu_tensor_active_weighted_seconds_total`, `gpu_energy_joules_total`, `gpu_energy_estimated_joules_total`, `gpu_pcie_replay_total`, `gpu_nvlink_errors_total`, `gpu_ecc_errors_total`, `gpu_retired_pages_total`, `gpu_remapped_rows_total`, `gpu_clock_violation_seconds_total`) предназначены для отчётов за период. Например, active hours считаются как `increase(gpu_active_seconds_total[$__range]) / 3600`, эквивалентные GPU-часы при 100% utilization — как `increase(gpu_utilization_weighted_seconds_total[$__range]) / 3600`, аппаратная энергия в kWh — как `increase(gpu_energy_joules_total[$__range]) / 3600000`, а оценочная энергия — как `increase(gpu_energy_estimated_joules_total[$__range]) / 3600000`.
 
 **Важно:** окно агрегации сбрасывается при каждом запросе `/metrics`, поэтому экспортер должен опрашивать ровно один скрейпер. Второй скрейпер (HA-пара Prometheus, ручной `curl` при отладке) молча украдёт окно у первого.
 
-Профилирующие метрики (`gpu_prof_*`) требуют GPU с поддержкой DCP (Volta и новее). На неподдерживаемых GPU экспортер автоматически откатывается на базовые поля, и эти серии отсутствуют.
+`gpu_energy_joules_total` использует аппаратный DCGM-счетчик `DCGM_FI_DEV_TOTAL_ENERGY_CONSUMPTION`, когда он доступен. `gpu_energy_estimated_joules_total` остается оценкой по формуле `power_watts * elapsed_seconds`.
+
+Профилирующие метрики (`gpu_prof_*`) требуют GPU с поддержкой DCP (Volta и новее). Экспортер выбирает совместимый набор profiling-полей из supported metric groups; если DCP недоступен, он откатывается на базовые поля, и эти серии отсутствуют.
+
+Расширенные operational/reliability поля DCGM проверяются при создании watcher и пропускаются, если конкретный драйвер, GPU или hostengine их не поддерживает. В этом случае соответствующие серии отсутствуют.
 
 Если DCGM не отдаёт значение (blank-поле), соответствующая серия просто не обновляется, а не выставляется в ноль — так отсутствие данных можно отличить от честного нуля.
 
@@ -242,9 +243,9 @@ Avoid building on a much newer Linux system than the target. CGO binaries link a
 | `config.go` | Reads environment variables and applies defaults for listen address, collection interval, request detection thresholds, DCGM mode, and log level. |
 | `dcgm_client.go` | Low-level DCGM integration. Initializes DCGM, discovers GPUs, caches static GPU identity, creates persistent DCGM field watchers, reads GPU samples, converts DCGM values, and cleans up DCGM groups on shutdown. |
 | `metrics.go` | Defines all exported `gpu_` metrics and their labels, then registers them in a dedicated registry. |
-| `exporter.go` | Main collection loop. Periodically reads DCGM samples, updates current metrics, accumulates per-window statistics, counts inferred GPU work requests, and flushes window metrics when `/metrics` is scraped. |
+| `exporter.go` | Main collection loop. Periodically reads DCGM samples, updates current metrics, accumulates per-window statistics, counts inferred GPU activity windows, and flushes window metrics when `/metrics` is scraped. |
 | `tracker.go` | Thread-safe helpers: window aggregation (max/avg between scrapes) and GPU activity/request detection. |
-| `server.go` | HTTP layer. Exposes `/metrics` and `/health`, flushes window statistics before serving metrics, and supports graceful shutdown. |
+| `server.go` | HTTP layer. Exposes `/metrics`, `/health`, and `/ready`, flushes window statistics before serving metrics, and supports graceful shutdown. |
 
 ### Configuration
 
@@ -269,29 +270,30 @@ GPU_EXPORTER_ADDR=0.0.0.0:9990 GPU_EXPORTER_LOG_LEVEL=debug go run .
 
 Examples of exported metrics:
 
-- `gpu_utilization_percent`
-- `gpu_memory_copy_utilization_percent`
-- `gpu_framebuffer_memory_used_percent`
-- `gpu_clock_throttle_reasons`
-- `gpu_prof_sm_active_ratio`
-- `gpu_prof_dram_active_ratio`
-- `gpu_prof_pipe_tensor_active_ratio`
-- `gpu_power_draw_watts`
-- `gpu_temperature_celsius`
-- `gpu_memory_used_bytes`
-- `gpu_request_count_total`
-- `gpu_active_seconds_total`
-- `gpu_utilization_weighted_seconds_total`
-- `gpu_tensor_active_weighted_seconds_total`
-- `gpu_energy_joules_total`
+- Utilization/activity: `gpu_utilization_percent`, `gpu_utilization_percent_current`, `gpu_memory_copy_utilization_percent`, `gpu_encoder_utilization_percent`, `gpu_decoder_utilization_percent`, `gpu_activity_windows_total`, `gpu_active_seconds_total`, `gpu_utilization_weighted_seconds_total`.
+- Memory/temperature: `gpu_memory_free_bytes`, `gpu_memory_used_bytes`, `gpu_memory_total_bytes`, `gpu_framebuffer_memory_reserved_bytes`, `gpu_bar1_memory_free_bytes`, `gpu_bar1_memory_used_bytes`, `gpu_bar1_memory_total_bytes`, `gpu_framebuffer_memory_used_percent`, `gpu_temperature_celsius`, `gpu_temperature_max_celsius`, `gpu_memory_temperature_celsius`, `gpu_memory_temperature_max_celsius`.
+- Power/clocks: `gpu_power_draw_watts`, `gpu_power_draw_instant_watts`, `gpu_power_limit_watts`, `gpu_power_enforced_limit_watts`, `gpu_energy_joules_total`, `gpu_energy_estimated_joules_total`, `gpu_sm_clock_hertz`, `gpu_memory_clock_hertz`, `gpu_performance_state`, `gpu_fan_speed_percent`, `gpu_clock_throttle_reasons`, `gpu_clock_event_active`, `gpu_clock_violation_seconds_total`.
+- PCIe/NVLink/reliability: `gpu_pcie_tx_bytes_per_second`, `gpu_pcie_rx_bytes_per_second`, `gpu_pcie_transmit_bytes_per_second`, `gpu_pcie_receive_bytes_per_second`, `gpu_pcie_link_generation`, `gpu_pcie_link_width`, `gpu_pcie_max_link_generation`, `gpu_pcie_max_link_width`, `gpu_pcie_replay_total`, `gpu_nvlink_tx_bytes_per_second`, `gpu_nvlink_rx_bytes_per_second`, `gpu_nvlink_transmit_bytes_per_second`, `gpu_nvlink_receive_bytes_per_second`, `gpu_nvlink_errors_total`, `gpu_xid_last_code`, `gpu_ecc_errors_total`, `gpu_retired_pages_total`, `gpu_retired_pages_pending`, `gpu_remapped_rows_total`, `gpu_row_remap_failure`, `gpu_row_remap_pending`.
+- Profiling: `gpu_prof_graphics_engine_active_ratio`, `gpu_prof_sm_active_ratio`, `gpu_prof_sm_occupancy_ratio`, `gpu_prof_dram_active_ratio`, `gpu_prof_pipe_tensor_active_ratio`, `gpu_prof_pipe_fp64_active_ratio`, `gpu_prof_pipe_fp32_active_ratio`, `gpu_prof_pipe_fp16_active_ratio`, `gpu_prof_pipe_int_active_ratio`, `gpu_prof_pipe_tensor_hmma_active_ratio`, `gpu_prof_pipe_tensor_imma_active_ratio`, `gpu_prof_pipe_tensor_dfma_active_ratio`, `gpu_sm_active_weighted_seconds_total`, `gpu_dram_active_weighted_seconds_total`, `gpu_tensor_active_weighted_seconds_total`.
+- Exporter health: `gpu_exporter_up`, `gpu_exporter_collect_success`, `gpu_exporter_last_success_timestamp_seconds`, `gpu_exporter_collection_duration_seconds`, `gpu_exporter_collection_errors_total`, `gpu_exporter_discovered_gpus`.
 
-Fast-changing metrics also have `_max` (peak) and `_avg` (average) variants. They are computed over the exporter's internal 100ms samples collected between external scrapes, so short load spikes are not lost even with a 5–15s scrape interval. Note that `gpu_utilization_percent` itself is a peak value (historical naming).
+Core GPU metrics are labeled with `gpu_index`, `gpu_uuid`, `pci_bus_id`, `gpu_name`, and `hostname`. Use `gpu_uuid` or `pci_bus_id`, rather than `gpu_index` alone, when you need stable GPU identity across reboots.
 
-Integral counter metrics (`gpu_active_seconds_total`, `gpu_utilization_weighted_seconds_total`, `gpu_sm_active_weighted_seconds_total`, `gpu_dram_active_weighted_seconds_total`, `gpu_tensor_active_weighted_seconds_total`, `gpu_energy_joules_total`) are meant for period reports. For example, active hours are `increase(gpu_active_seconds_total[$__range]) / 3600`, equivalent 100%-utilization GPU-hours are `increase(gpu_utilization_weighted_seconds_total[$__range]) / 3600`, and energy in kWh is `increase(gpu_energy_joules_total[$__range]) / 3600000`.
+`/health` only checks that the HTTP process is alive. `/ready` returns `200` only after a recent successful DCGM collection with at least one discovered GPU; otherwise it returns `503`.
+
+`gpu_activity_windows_total` counts inferred GPU activity windows from utilization threshold crossings. The old `gpu_request_count_total` name remains as a compatibility alias and does not represent real application requests.
+
+Fast-changing metrics also have `_max` (peak) and `_avg` (average) variants. They are computed over the exporter's internal 100ms samples collected between external scrapes, so short load spikes are not lost even with a 5–15s scrape interval. `gpu_utilization_percent_current` is the last valid DCGM sample, while `gpu_utilization_percent` remains a peak-between-scrapes value for historical compatibility.
+
+Integral counter metrics (`gpu_active_seconds_total`, `gpu_utilization_weighted_seconds_total`, `gpu_sm_active_weighted_seconds_total`, `gpu_dram_active_weighted_seconds_total`, `gpu_tensor_active_weighted_seconds_total`, `gpu_energy_joules_total`, `gpu_energy_estimated_joules_total`, `gpu_pcie_replay_total`, `gpu_nvlink_errors_total`, `gpu_ecc_errors_total`, `gpu_retired_pages_total`, `gpu_remapped_rows_total`, `gpu_clock_violation_seconds_total`) are meant for period reports. For example, active hours are `increase(gpu_active_seconds_total[$__range]) / 3600`, equivalent 100%-utilization GPU-hours are `increase(gpu_utilization_weighted_seconds_total[$__range]) / 3600`, hardware energy in kWh is `increase(gpu_energy_joules_total[$__range]) / 3600000`, and estimated energy is `increase(gpu_energy_estimated_joules_total[$__range]) / 3600000`.
 
 **Important:** the aggregation window is reset on every `/metrics` request, so exactly one scraper must poll the exporter. A second scraper (an HA Prometheus pair, manual `curl` during debugging) would silently steal the window from the first one.
 
-Profiling metrics (`gpu_prof_*`) require a GPU with DCP support (Volta or newer). On unsupported GPUs the exporter automatically falls back to basic fields and these series are absent.
+`gpu_energy_joules_total` uses the `DCGM_FI_DEV_TOTAL_ENERGY_CONSUMPTION` hardware counter when available. `gpu_energy_estimated_joules_total` remains the `power_watts * elapsed_seconds` estimate.
+
+Profiling metrics (`gpu_prof_*`) require a GPU with DCP support (Volta or newer). The exporter selects a compatible profiling field set from supported metric groups; if DCP is unavailable, it falls back to basic fields and these series are absent.
+
+Extended operational/reliability DCGM fields are checked when creating the watcher and skipped if the specific driver, GPU, or hostengine does not support them. In that case the corresponding series are absent.
 
 If DCGM does not report a value (a blank field), the corresponding series is simply not updated instead of being set to zero, so missing data is distinguishable from a true zero.
 
