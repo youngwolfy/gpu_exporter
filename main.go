@@ -33,7 +33,7 @@ func run() int {
 		return 1
 	}
 	defer client.Close()
-	logger.Info("DCGM initialized", "mode", cfg.DCGMMode)
+	logger.Info("DCGM initialized", "mode", cfg.DCGMMode, "version", version)
 
 	registry := prometheus.NewRegistry()
 	metrics := NewMetrics(registry)

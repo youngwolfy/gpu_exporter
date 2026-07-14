@@ -112,7 +112,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "gpu_utilization_percent{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}",
+          "expr": "gpu_utilization_percent_current{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}",
           "legendFormat": "{{hostname}} GPU {{gpu_index}}",
           "range": true,
           "refId": "A"
@@ -520,7 +520,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "label_replace(gpu_driver_version_info{hostname=~\"$hostname\"}, \"info\", \"driver\", \"hostname\", \".*\") or label_replace(gpu_cuda_version_info{hostname=~\"$hostname\"}, \"info\", \"cuda\", \"hostname\", \".*\")",
+          "expr": "label_replace(gpu_driver_version_info{hostname=~\"$hostname\"}, \"info\", \"driver\", \"hostname\", \".*\") or label_replace(gpu_cuda_version_info{hostname=~\"$hostname\"}, \"info\", \"cuda\", \"hostname\", \".*\") or label_replace(gpu_exporter_build_info, \"info\", \"exporter-$1\", \"version\", \"(.*)\")",
           "legendFormat": "",
           "range": false,
           "refId": "A",
@@ -620,7 +620,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "rate(gpu_utilization_weighted_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__rate_interval]) * 100",
+          "expr": "rate(gpu_utilization_weighted_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__rate_interval]) / clamp_min(rate(gpu_utilization_observed_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__rate_interval]), 0.001) * 100",
           "legendFormat": "{{hostname}} GPU {{gpu_index}} среднее",
           "range": true,
           "refId": "B"
@@ -1074,7 +1074,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "rate(gpu_sm_active_weighted_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__rate_interval])",
+          "expr": "rate(gpu_sm_active_weighted_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__rate_interval]) / clamp_min(rate(gpu_sm_active_observed_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__rate_interval]), 0.001)",
           "legendFormat": "{{hostname}} GPU {{gpu_index}} SM среднее",
           "range": true,
           "refId": "A"
@@ -1164,7 +1164,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "rate(gpu_tensor_active_weighted_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__rate_interval])",
+          "expr": "rate(gpu_tensor_active_weighted_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__rate_interval]) / clamp_min(rate(gpu_tensor_active_observed_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__rate_interval]), 0.001)",
           "legendFormat": "{{hostname}} GPU {{gpu_index}} Tensor среднее",
           "range": true,
           "refId": "A"
@@ -1254,7 +1254,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "rate(gpu_dram_active_weighted_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__rate_interval])",
+          "expr": "rate(gpu_dram_active_weighted_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__rate_interval]) / clamp_min(rate(gpu_dram_active_observed_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__rate_interval]), 0.001)",
           "legendFormat": "{{hostname}} GPU {{gpu_index}} DRAM среднее",
           "range": true,
           "refId": "A"
@@ -1343,7 +1343,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "increase(gpu_request_count_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[1h])",
+          "expr": "increase(gpu_activity_windows_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[1h])",
           "legendFormat": "{{hostname}} GPU {{gpu_index}} активные окна/час",
           "range": true,
           "refId": "A"
@@ -1421,7 +1421,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "rate(gpu_tensor_active_weighted_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__rate_interval]) / clamp_min(rate(gpu_sm_active_weighted_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__rate_interval]), 0.001)",
+          "expr": "(rate(gpu_tensor_active_weighted_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__rate_interval]) / clamp_min(rate(gpu_tensor_active_observed_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__rate_interval]), 0.001)) / clamp_min(rate(gpu_sm_active_weighted_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__rate_interval]) / clamp_min(rate(gpu_sm_active_observed_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__rate_interval]), 0.001), 0.001)",
           "legendFormat": "{{hostname}} GPU {{gpu_index}} tensor/sm",
           "range": true,
           "refId": "A"
@@ -1806,7 +1806,7 @@
         "y": 50
       },
       "options": {
-        "content": "Панели отчёта агрегируются за выбранный диапазон времени `${__range}`. Начиная с версии 0.4.0 KPI за период используют интегральные счётчики Prometheus, поэтому месячные отчёты не зависят от тяжёлых subquery для активного времени, эквивалентных GPU-часов, часов активности Tensor и энергии. Для LLM-инференса календарная средняя утилизация намеренно не является единственным KPI: смотрите вместе активное время, активные часы, среднюю утилизацию во время активности, peak/P95, оценку активных окон и активность Tensor.",
+        "content": "Панели отчёта агрегируются за выбранный диапазон времени `${__range}`. Начиная с версии 0.5.0 KPI используют weighted и observed counters, поэтому интервалы без данных не считаются нулевой активностью. Для LLM-инференса календарная средняя утилизация намеренно не является единственным KPI: смотрите вместе активное время, активные часы, среднюю утилизацию во время активности, peak/P95, оценку активных окон и активность Tensor.",
         "mode": "markdown"
       },
       "pluginVersion": "11.0.0"
@@ -2068,7 +2068,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "increase(gpu_request_count_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range])",
+          "expr": "increase(gpu_activity_windows_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range])",
           "legendFormat": "{{hostname}} GPU {{gpu_index}}",
           "range": true,
           "refId": "A"
@@ -2269,7 +2269,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "label_replace((increase(gpu_utilization_weighted_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range]) / $__range_s * 100), \"kpi\", \"calendar_avg_util_percent\", \"hostname\", \".*\")\nor\nlabel_replace((increase(gpu_active_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range]) / $__range_s * 100), \"kpi\", \"active_time_percent\", \"hostname\", \".*\")\nor\nlabel_replace((increase(gpu_active_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range]) / 3600), \"kpi\", \"active_hours\", \"hostname\", \".*\")\nor\nlabel_replace((increase(gpu_utilization_weighted_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range]) / 3600), \"kpi\", \"equivalent_gpu_hours_100pct\", \"hostname\", \".*\")\nor\nlabel_replace((increase(gpu_utilization_weighted_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range]) / clamp_min(increase(gpu_active_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range]), 1) * 100), \"kpi\", \"avg_util_while_active_percent\", \"hostname\", \".*\")\nor\nlabel_replace((max_over_time(gpu_utilization_percent{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range])), \"kpi\", \"peak_util_percent\", \"hostname\", \".*\")\nor\nlabel_replace((quantile_over_time(0.95, gpu_utilization_percent{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range])), \"kpi\", \"p95_util_percent\", \"hostname\", \".*\")\nor\nlabel_replace((increase(gpu_request_count_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range])), \"kpi\", \"inferred_gpu_activity_windows\", \"hostname\", \".*\")\nor\nlabel_replace((increase(gpu_tensor_active_weighted_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range]) / $__range_s), \"kpi\", \"calendar_avg_tensor_active_ratio\", \"hostname\", \".*\")\nor\nlabel_replace((increase(gpu_tensor_active_weighted_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range]) / 3600), \"kpi\", \"tensor_active_hours\", \"hostname\", \".*\")\nor\nlabel_replace((increase(gpu_sm_active_weighted_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range]) / 3600), \"kpi\", \"sm_active_hours\", \"hostname\", \".*\")\nor\nlabel_replace((increase(gpu_dram_active_weighted_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range]) / 3600), \"kpi\", \"dram_active_hours\", \"hostname\", \".*\")\nor\nlabel_replace((max_over_time(gpu_prof_pipe_tensor_active_ratio_max{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range])), \"kpi\", \"max_tensor_active_ratio\", \"hostname\", \".*\")\nor\nlabel_replace((increase(gpu_energy_joules_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range]) / 3600000), \"kpi\", \"energy_kwh\", \"hostname\", \".*\")\nor\nlabel_replace((increase(gpu_energy_joules_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range]) / $__range_s), \"kpi\", \"avg_power_watts\", \"hostname\", \".*\")\nor\nlabel_replace((max_over_time(gpu_power_draw_watts_max{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range])), \"kpi\", \"max_power_watts\", \"hostname\", \".*\")\nor\nlabel_replace((max_over_time(gpu_temperature_celsius_max{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range])), \"kpi\", \"max_temperature_celsius\", \"hostname\", \".*\")\nor\nlabel_replace((max_over_time(gpu_framebuffer_memory_used_percent_max{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range])), \"kpi\", \"max_framebuffer_used_percent\", \"hostname\", \".*\")",
+          "expr": "label_replace((increase(gpu_utilization_weighted_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range]) / clamp_min(increase(gpu_utilization_observed_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range]), 1) * 100), \"kpi\", \"calendar_avg_util_percent\", \"hostname\", \".*\")\nor\nlabel_replace((increase(gpu_active_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range]) / clamp_min(increase(gpu_utilization_observed_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range]), 1) * 100), \"kpi\", \"active_time_percent\", \"hostname\", \".*\")\nor\nlabel_replace((increase(gpu_active_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range]) / 3600), \"kpi\", \"active_hours\", \"hostname\", \".*\")\nor\nlabel_replace((increase(gpu_utilization_weighted_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range]) / 3600), \"kpi\", \"equivalent_gpu_hours_100pct\", \"hostname\", \".*\")\nor\nlabel_replace((increase(gpu_utilization_weighted_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range]) / clamp_min(increase(gpu_active_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range]), 1) * 100), \"kpi\", \"avg_util_while_active_percent\", \"hostname\", \".*\")\nor\nlabel_replace((max_over_time(gpu_utilization_percent{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range])), \"kpi\", \"peak_util_percent\", \"hostname\", \".*\")\nor\nlabel_replace((quantile_over_time(0.95, gpu_utilization_percent{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range])), \"kpi\", \"p95_util_percent\", \"hostname\", \".*\")\nor\nlabel_replace((increase(gpu_activity_windows_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range])), \"kpi\", \"inferred_gpu_activity_windows\", \"hostname\", \".*\")\nor\nlabel_replace((increase(gpu_tensor_active_weighted_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range]) / clamp_min(increase(gpu_tensor_active_observed_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range]), 1)), \"kpi\", \"calendar_avg_tensor_active_ratio\", \"hostname\", \".*\")\nor\nlabel_replace((increase(gpu_tensor_active_weighted_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range]) / 3600), \"kpi\", \"tensor_active_hours\", \"hostname\", \".*\")\nor\nlabel_replace((increase(gpu_sm_active_weighted_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range]) / 3600), \"kpi\", \"sm_active_hours\", \"hostname\", \".*\")\nor\nlabel_replace((increase(gpu_dram_active_weighted_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range]) / 3600), \"kpi\", \"dram_active_hours\", \"hostname\", \".*\")\nor\nlabel_replace((max_over_time(gpu_prof_pipe_tensor_active_ratio_max{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range])), \"kpi\", \"max_tensor_active_ratio\", \"hostname\", \".*\")\nor\nlabel_replace((increase(gpu_energy_joules_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range]) / 3600000), \"kpi\", \"energy_kwh\", \"hostname\", \".*\")\nor\nlabel_replace((increase(gpu_energy_joules_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range]) / $__range_s), \"kpi\", \"avg_power_watts\", \"hostname\", \".*\")\nor\nlabel_replace((max_over_time(gpu_power_draw_watts_max{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range])), \"kpi\", \"max_power_watts\", \"hostname\", \".*\")\nor\nlabel_replace((max_over_time(gpu_temperature_celsius_max{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range])), \"kpi\", \"max_temperature_celsius\", \"hostname\", \".*\")\nor\nlabel_replace((max_over_time(gpu_framebuffer_memory_used_percent_max{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range])), \"kpi\", \"max_framebuffer_used_percent\", \"hostname\", \".*\")",
           "legendFormat": "",
           "range": false,
           "refId": "A",
@@ -2340,7 +2340,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "increase(gpu_utilization_weighted_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[7d]) / 604800 * 100",
+          "expr": "increase(gpu_utilization_weighted_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[7d]) / clamp_min(increase(gpu_utilization_observed_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[7d]), 1) * 100",
           "legendFormat": "7 дней",
           "range": false,
           "refId": "A",
@@ -2353,7 +2353,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "increase(gpu_utilization_weighted_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[30d]) / 2592000 * 100",
+          "expr": "increase(gpu_utilization_weighted_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[30d]) / clamp_min(increase(gpu_utilization_observed_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[30d]), 1) * 100",
           "legendFormat": "30 дней",
           "range": false,
           "refId": "B",
@@ -2366,7 +2366,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "increase(gpu_utilization_weighted_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[90d]) / 7776000 * 100",
+          "expr": "increase(gpu_utilization_weighted_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[90d]) / clamp_min(increase(gpu_utilization_observed_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[90d]), 1) * 100",
           "legendFormat": "90 дней",
           "range": false,
           "refId": "C",
@@ -2466,7 +2466,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "label_replace(gpu_driver_version_info{hostname=~\"$hostname\"}, \"info\", \"driver\", \"hostname\", \".*\") or label_replace(gpu_cuda_version_info{hostname=~\"$hostname\"}, \"info\", \"cuda\", \"hostname\", \".*\")",
+          "expr": "label_replace(gpu_driver_version_info{hostname=~\"$hostname\"}, \"info\", \"driver\", \"hostname\", \".*\") or label_replace(gpu_cuda_version_info{hostname=~\"$hostname\"}, \"info\", \"cuda\", \"hostname\", \".*\") or label_replace(gpu_exporter_build_info, \"info\", \"exporter-$1\", \"version\", \"(.*)\")",
           "legendFormat": "",
           "range": false,
           "refId": "A",
@@ -2534,7 +2534,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "increase(gpu_tensor_active_weighted_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range]) / $__range_s",
+          "expr": "increase(gpu_tensor_active_weighted_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range]) / clamp_min(increase(gpu_tensor_active_observed_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range]), 1)",
           "legendFormat": "{{hostname}} GPU {{gpu_index}}",
           "range": true,
           "refId": "A"
@@ -3074,6 +3074,1081 @@
           "refId": "A"
         }
       ]
+    },
+    {
+      "id": 44,
+      "type": "text",
+      "title": "Надёжность экспортера и DCGM",
+      "description": "",
+      "gridPos": {
+        "h": 2,
+        "w": 24,
+        "x": 0,
+        "y": 97
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "Полнота сбора, доступность DCGM-полей, PCIe/NVLink, profiling pipelines и аппаратные счётчики ошибок. Метрики availability и observed coverage помогают отличить нулевое значение от отсутствующих данных."
+      },
+      "pluginVersion": "13.0.2"
+    },
+    {
+      "id": 45,
+      "type": "stat",
+      "title": "Состояние коллектора",
+      "description": "Exporter up, complete collection, количество GPU, ошибки и длительность последнего сбора.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 0,
+        "y": 99
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 3,
+          "min": 0,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "13.0.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "gpu_exporter_up{hostname=~\"$hostname\"}",
+          "legendFormat": "up {{hostname}}",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "gpu_exporter_collect_success{hostname=~\"$hostname\"}",
+          "legendFormat": "complete {{hostname}}",
+          "range": true,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "gpu_exporter_discovered_gpus{hostname=~\"$hostname\"}",
+          "legendFormat": "discovered {{hostname}}",
+          "range": true,
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "gpu_exporter_collected_gpus{hostname=~\"$hostname\"}",
+          "legendFormat": "collected {{hostname}}",
+          "range": true,
+          "refId": "D"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "gpu_exporter_failed_gpus{hostname=~\"$hostname\"}",
+          "legendFormat": "failed {{hostname}}",
+          "range": true,
+          "refId": "E"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "gpu_exporter_collection_duration_seconds{hostname=~\"$hostname\"}",
+          "legendFormat": "duration {{hostname}}",
+          "range": true,
+          "refId": "F"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "increase(gpu_exporter_collection_errors_total{hostname=~\"$hostname\"}[$__range])",
+          "legendFormat": "collection errors {{hostname}}",
+          "range": true,
+          "refId": "G"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "time() - gpu_exporter_last_success_timestamp_seconds{hostname=~\"$hostname\"}",
+          "legendFormat": "last complete age {{hostname}}",
+          "range": true,
+          "refId": "H"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "increase(gpu_exporter_gpu_collection_errors_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range])",
+          "legendFormat": "GPU {{gpu_index}} {{reason}} errors",
+          "range": true,
+          "refId": "I"
+        }
+      ]
+    },
+    {
+      "id": 46,
+      "type": "state-timeline",
+      "title": "GPU и DCGM field availability",
+      "description": "1 — сбор успешен или поле доступно; 0 — partial failure, unsupported либо временно отсутствующее значение.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 16,
+        "x": 8,
+        "y": 99
+      },
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 1,
+          "mappings": [
+            {
+              "options": {
+                "0": {
+                  "color": "red",
+                  "text": "unavailable"
+                },
+                "1": {
+                  "color": "green",
+                  "text": "available"
+                }
+              },
+              "type": "value"
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "alignValue": "left",
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "mergeValues": true,
+        "rowHeight": 0.9,
+        "showValue": "never",
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "13.0.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "gpu_exporter_gpu_collect_success{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}",
+          "legendFormat": "GPU {{gpu_index}} collection",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "gpu_dcgm_field_available{hostname=~\"$hostname\", gpu_index=~\"$gpu\"} * gpu_dcgm_field_supported{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}",
+          "legendFormat": "GPU {{gpu_index}} {{field}}",
+          "range": true,
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "id": 47,
+      "type": "timeseries",
+      "title": "Возраст последнего валидного DCGM-сэмпла",
+      "description": "Рост возраста при availability=0 показывает stale field без маскировки последним gauge-значением.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 105
+      },
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "13.0.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "time() - gpu_dcgm_field_last_success_timestamp_seconds{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}",
+          "legendFormat": "GPU {{gpu_index}} {{field}}",
+          "range": true,
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 48,
+      "type": "timeseries",
+      "title": "PCIe и NVLink throughput",
+      "description": "Canonical DCP rates с legacy fallback для PCIe; линии avg/max построены по завершённым окнам экспортера.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 16,
+        "x": 0,
+        "y": 113
+      },
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "unit": "Bps"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "13.0.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "gpu_pcie_transmit_bytes_per_second{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}",
+          "legendFormat": "PCIe TX current GPU {{gpu_index}}",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "gpu_pcie_receive_bytes_per_second{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}",
+          "legendFormat": "PCIe RX current GPU {{gpu_index}}",
+          "range": true,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "gpu_pcie_transmit_bytes_per_second_max{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}",
+          "legendFormat": "PCIe TX max GPU {{gpu_index}}",
+          "range": true,
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "gpu_pcie_receive_bytes_per_second_avg{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}",
+          "legendFormat": "PCIe RX avg GPU {{gpu_index}}",
+          "range": true,
+          "refId": "D"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "gpu_nvlink_transmit_bytes_per_second{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}",
+          "legendFormat": "NVLink TX current GPU {{gpu_index}}",
+          "range": true,
+          "refId": "E"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "gpu_nvlink_receive_bytes_per_second{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}",
+          "legendFormat": "NVLink RX current GPU {{gpu_index}}",
+          "range": true,
+          "refId": "F"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "gpu_nvlink_transmit_bytes_per_second_max{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}",
+          "legendFormat": "NVLink TX max GPU {{gpu_index}}",
+          "range": true,
+          "refId": "G"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "gpu_nvlink_receive_bytes_per_second_avg{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}",
+          "legendFormat": "NVLink RX avg GPU {{gpu_index}}",
+          "range": true,
+          "refId": "H"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "gpu_pcie_transmit_bytes_per_second_avg{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}",
+          "legendFormat": "PCIe TX avg GPU {{gpu_index}}",
+          "range": true,
+          "refId": "I"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "gpu_pcie_receive_bytes_per_second_max{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}",
+          "legendFormat": "PCIe RX max GPU {{gpu_index}}",
+          "range": true,
+          "refId": "J"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "gpu_nvlink_transmit_bytes_per_second_avg{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}",
+          "legendFormat": "NVLink TX avg GPU {{gpu_index}}",
+          "range": true,
+          "refId": "K"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "gpu_nvlink_receive_bytes_per_second_max{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}",
+          "legendFormat": "NVLink RX max GPU {{gpu_index}}",
+          "range": true,
+          "refId": "L"
+        }
+      ]
+    },
+    {
+      "id": 49,
+      "type": "stat",
+      "title": "Передано данных за период",
+      "description": "Интегральные PCIe/NVLink counters за выбранный диапазон dashboard.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 113
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 2,
+          "min": 0,
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "13.0.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "increase(gpu_pcie_transmitted_bytes_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range])",
+          "legendFormat": "PCIe TX GPU {{gpu_index}}",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "increase(gpu_pcie_received_bytes_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range])",
+          "legendFormat": "PCIe RX GPU {{gpu_index}}",
+          "range": true,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "increase(gpu_nvlink_transmitted_bytes_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range])",
+          "legendFormat": "NVLink TX GPU {{gpu_index}}",
+          "range": true,
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "increase(gpu_nvlink_received_bytes_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range])",
+          "legendFormat": "NVLink RX GPU {{gpu_index}}",
+          "range": true,
+          "refId": "D"
+        }
+      ]
+    },
+    {
+      "id": 50,
+      "type": "timeseries",
+      "title": "Profiling pipelines: average и peak",
+      "description": "Полный набор DCP ratios 0–1; неподдерживаемые GPU не публикуют соответствующие серии.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 121
+      },
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 1,
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "13.0.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "gpu_prof_graphics_engine_active_ratio_avg{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}",
+          "legendFormat": "graphics avg GPU {{gpu_index}}",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "gpu_prof_graphics_engine_active_ratio_max{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}",
+          "legendFormat": "graphics max GPU {{gpu_index}}",
+          "range": true,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "gpu_prof_sm_occupancy_ratio_avg{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}",
+          "legendFormat": "SM occupancy avg GPU {{gpu_index}}",
+          "range": true,
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "gpu_prof_pipe_fp64_active_ratio_avg{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}",
+          "legendFormat": "FP64 avg GPU {{gpu_index}}",
+          "range": true,
+          "refId": "D"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "gpu_prof_pipe_fp32_active_ratio_avg{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}",
+          "legendFormat": "FP32 avg GPU {{gpu_index}}",
+          "range": true,
+          "refId": "E"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "gpu_prof_pipe_fp16_active_ratio_avg{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}",
+          "legendFormat": "FP16 avg GPU {{gpu_index}}",
+          "range": true,
+          "refId": "F"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "gpu_prof_pipe_int_active_ratio_avg{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}",
+          "legendFormat": "INT avg GPU {{gpu_index}}",
+          "range": true,
+          "refId": "G"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "gpu_prof_pipe_tensor_hmma_active_ratio_avg{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}",
+          "legendFormat": "Tensor HMMA avg GPU {{gpu_index}}",
+          "range": true,
+          "refId": "H"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "gpu_prof_pipe_tensor_imma_active_ratio_avg{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}",
+          "legendFormat": "Tensor IMMA avg GPU {{gpu_index}}",
+          "range": true,
+          "refId": "I"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "gpu_prof_pipe_tensor_dfma_active_ratio_avg{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}",
+          "legendFormat": "Tensor DFMA avg GPU {{gpu_index}}",
+          "range": true,
+          "refId": "J"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "gpu_prof_sm_occupancy_ratio_max{hostname=~\"$hostname\", gpu_index=~\"$gpu\"} or gpu_prof_pipe_fp64_active_ratio_max{hostname=~\"$hostname\", gpu_index=~\"$gpu\"} or gpu_prof_pipe_fp32_active_ratio_max{hostname=~\"$hostname\", gpu_index=~\"$gpu\"} or gpu_prof_pipe_fp16_active_ratio_max{hostname=~\"$hostname\", gpu_index=~\"$gpu\"} or gpu_prof_pipe_int_active_ratio_max{hostname=~\"$hostname\", gpu_index=~\"$gpu\"} or gpu_prof_pipe_tensor_hmma_active_ratio_max{hostname=~\"$hostname\", gpu_index=~\"$gpu\"} or gpu_prof_pipe_tensor_imma_active_ratio_max{hostname=~\"$hostname\", gpu_index=~\"$gpu\"} or gpu_prof_pipe_tensor_dfma_active_ratio_max{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}",
+          "legendFormat": "{{__name__}} GPU {{gpu_index}}",
+          "range": true,
+          "refId": "K"
+        }
+      ]
+    },
+    {
+      "id": 51,
+      "type": "timeseries",
+      "title": "Reliability counters за период",
+      "description": "Изменения аппаратных счётчиков; поддерживаемый ноль остаётся видимой нулевой серией.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 130
+      },
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "13.0.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "increase(gpu_pcie_replay_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range])",
+          "legendFormat": "PCIe replay GPU {{gpu_index}}",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "increase(gpu_ecc_errors_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range])",
+          "legendFormat": "ECC {{correctability}} {{persistence}} GPU {{gpu_index}}",
+          "range": true,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "increase(gpu_retired_pages_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range])",
+          "legendFormat": "retired {{cause}} GPU {{gpu_index}}",
+          "range": true,
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "increase(gpu_remapped_rows_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range])",
+          "legendFormat": "remapped {{correctability}} GPU {{gpu_index}}",
+          "range": true,
+          "refId": "D"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "max_over_time(gpu_retired_pages_pending{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range])",
+          "legendFormat": "retired pending GPU {{gpu_index}}",
+          "range": true,
+          "refId": "E"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "max_over_time(gpu_xid_last_code{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range])",
+          "legendFormat": "last XID GPU {{gpu_index}}",
+          "range": true,
+          "refId": "F"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "max_over_time(gpu_row_remap_failure{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range])",
+          "legendFormat": "row remap failure GPU {{gpu_index}}",
+          "range": true,
+          "refId": "G"
+        }
+      ]
+    },
+    {
+      "id": 52,
+      "type": "timeseries",
+      "title": "Запас до maximum operating temperature",
+      "description": "Разница между каноническим maximum operating threshold и текущей температурой.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 130
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "min"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "asc"
+        }
+      },
+      "pluginVersion": "13.0.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "gpu_temperature_max_operating_celsius{hostname=~\"$hostname\", gpu_index=~\"$gpu\"} - gpu_temperature_celsius{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}",
+          "legendFormat": "GPU core headroom {{gpu_index}}",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "gpu_memory_temperature_max_operating_celsius{hostname=~\"$hostname\", gpu_index=~\"$gpu\"} - gpu_memory_temperature_celsius{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}",
+          "legendFormat": "GPU memory headroom {{gpu_index}}",
+          "range": true,
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "id": 53,
+      "type": "timeseries",
+      "title": "Clock/policy violation time за период",
+      "description": "Нарастание violation counters, уже преобразованных из наносекунд DCGM в секунды.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 139
+      },
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "13.0.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "increase(gpu_clock_violation_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__range])",
+          "legendFormat": "GPU {{gpu_index}} {{reason}}",
+          "range": true,
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 54,
+      "type": "timeseries",
+      "title": "Observation coverage",
+      "description": "Доля времени с валидными DCGM samples. Значение ниже 1 означает пропуски и не должно подменяться нулями.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 139
+      },
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 1,
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "min"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "asc"
+        }
+      },
+      "pluginVersion": "13.0.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "rate(gpu_utilization_observed_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__rate_interval])",
+          "legendFormat": "utilization GPU {{gpu_index}}",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "rate(gpu_prof_graphics_engine_active_observed_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__rate_interval])",
+          "legendFormat": "graphics GPU {{gpu_index}}",
+          "range": true,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "rate(gpu_sm_active_observed_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__rate_interval])",
+          "legendFormat": "SM GPU {{gpu_index}}",
+          "range": true,
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "rate(gpu_prof_sm_occupancy_observed_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__rate_interval])",
+          "legendFormat": "SM occupancy GPU {{gpu_index}}",
+          "range": true,
+          "refId": "D"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "rate(gpu_dram_active_observed_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__rate_interval])",
+          "legendFormat": "DRAM GPU {{gpu_index}}",
+          "range": true,
+          "refId": "E"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "rate(gpu_tensor_active_observed_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__rate_interval])",
+          "legendFormat": "Tensor GPU {{gpu_index}}",
+          "range": true,
+          "refId": "F"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "rate(gpu_prof_pipe_fp64_active_observed_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__rate_interval]) or rate(gpu_prof_pipe_fp32_active_observed_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__rate_interval]) or rate(gpu_prof_pipe_fp16_active_observed_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__rate_interval]) or rate(gpu_prof_pipe_int_active_observed_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__rate_interval]) or rate(gpu_prof_pipe_tensor_hmma_active_observed_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__rate_interval]) or rate(gpu_prof_pipe_tensor_imma_active_observed_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__rate_interval]) or rate(gpu_prof_pipe_tensor_dfma_active_observed_seconds_total{hostname=~\"$hostname\", gpu_index=~\"$gpu\"}[$__rate_interval])",
+          "legendFormat": "{{__name__}} GPU {{gpu_index}}",
+          "range": true,
+          "refId": "G"
+        }
+      ]
     }
   ],
   "refresh": "10s",
@@ -3115,14 +4190,14 @@
           "type": "prometheus",
           "uid": "${datasource}"
         },
-        "definition": "label_values(gpu_utilization_percent, hostname)",
+        "definition": "label_values(gpu_utilization_percent_current, hostname)",
         "hide": 0,
         "includeAll": true,
         "label": "Сервер",
         "multi": true,
         "name": "hostname",
         "options": [],
-        "query": "label_values(gpu_utilization_percent, hostname)",
+        "query": "label_values(gpu_utilization_percent_current, hostname)",
         "refresh": 1,
         "regex": "",
         "sort": 1,
@@ -3139,14 +4214,14 @@
           "type": "prometheus",
           "uid": "${datasource}"
         },
-        "definition": "label_values(gpu_utilization_percent{hostname=~\"$hostname\"}, gpu_index)",
+        "definition": "label_values(gpu_utilization_percent_current{hostname=~\"$hostname\"}, gpu_index)",
         "hide": 0,
         "includeAll": true,
         "label": "GPU",
         "multi": true,
         "name": "gpu",
         "options": [],
-        "query": "label_values(gpu_utilization_percent{hostname=~\"$hostname\"}, gpu_index)",
+        "query": "label_values(gpu_utilization_percent_current{hostname=~\"$hostname\"}, gpu_index)",
         "refresh": 2,
         "regex": "",
         "sort": 3,
@@ -3202,6 +4277,6 @@
   "timezone": "browser",
   "title": "GPU Exporter / Мониторинг и отчёт",
   "uid": "gpu-exporter-dashboard",
-  "version": 3,
+  "version": 4,
   "weekStart": ""
 }

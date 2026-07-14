@@ -26,7 +26,7 @@ func NewServer(cfg Config, exporter *Exporter, gatherer prometheus.Gatherer, log
 		logger:   logger,
 	}
 
-	mux.HandleFunc("/metrics", server.metricsHandler())
+	mux.Handle("/metrics", server.handler)
 	mux.HandleFunc("/health", healthHandler)
 	mux.HandleFunc("/ready", server.readyHandler())
 
@@ -50,16 +50,6 @@ func (s *Server) Run() error {
 
 func (s *Server) Shutdown(ctx context.Context) error {
 	return s.httpServer.Shutdown(ctx)
-}
-
-func (s *Server) metricsHandler() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		// Перед сбором registry публикуем накопленную с прошлого скрейпа
-		// оконную статистику (*_max, *_avg) и начинаем новое окно.
-		// Окно сбрасывается при каждом обращении.
-		s.exporter.FlushWindow()
-		s.handler.ServeHTTP(w, r)
-	}
 }
 
 func healthHandler(w http.ResponseWriter, _ *http.Request) {

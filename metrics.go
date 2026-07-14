@@ -2,79 +2,77 @@ package main
 
 import "github.com/prometheus/client_golang/prometheus"
 
-// Metrics содержит все экспортируемые серии.
+type WindowMetric struct {
+	Max *prometheus.GaugeVec
+	Avg *prometheus.GaugeVec
+}
+
+type IntegralMetric struct {
+	Weighted *prometheus.CounterVec
+	Observed *prometheus.CounterVec
+	Percent  bool
+}
+
+// Metrics содержит все экспортируемые серии и списки GPU-векторов,
+// необходимые для удаления серий исчезнувших устройств.
 type Metrics struct {
-	GPUUtilization             *prometheus.GaugeVec
-	GPUUtilizationCurrent      *prometheus.GaugeVec
-	GPUMemoryFree              *prometheus.GaugeVec
-	GPUMemoryUsed              *prometheus.GaugeVec
-	GPUMemoryTotal             *prometheus.GaugeVec
-	GPUMemoryReserved          *prometheus.GaugeVec
-	GPUBAR1MemoryFree          *prometheus.GaugeVec
-	GPUBAR1MemoryUsed          *prometheus.GaugeVec
-	GPUBAR1MemoryTotal         *prometheus.GaugeVec
-	GPUMemoryTemperature       *prometheus.GaugeVec
-	GPUMemoryTemperatureMax    *prometheus.GaugeVec
-	GPUTemperature             *prometheus.GaugeVec
-	GPUTemperatureMax          *prometheus.GaugeVec
-	GPUPowerDraw               *prometheus.GaugeVec
-	GPUPowerDrawInstant        *prometheus.GaugeVec
-	GPUPowerLimit              *prometheus.GaugeVec
-	GPUPowerEnforcedLimit      *prometheus.GaugeVec
-	GPUMemoryCopyUtil          *prometheus.GaugeVec
-	GPUEncoderUtil             *prometheus.GaugeVec
-	GPUDecoderUtil             *prometheus.GaugeVec
-	GPUMemoryUsedPct           *prometheus.GaugeVec
-	GPUSMClockHertz            *prometheus.GaugeVec
-	GPUMemoryClockHertz        *prometheus.GaugeVec
-	GPUPerformanceState        *prometheus.GaugeVec
-	GPUFanSpeed                *prometheus.GaugeVec
-	GPUPCIeTXBytesPerSecond    *prometheus.GaugeVec
-	GPUPCIeRXBytesPerSecond    *prometheus.GaugeVec
-	GPUPCIeTransmitBytesPerSecond *prometheus.GaugeVec
-	GPUPCIeReceiveBytesPerSecond *prometheus.GaugeVec
-	GPUPCIeLinkGeneration      *prometheus.GaugeVec
-	GPUPCIeLinkWidth           *prometheus.GaugeVec
-	GPUPCIeMaxLinkGeneration   *prometheus.GaugeVec
-	GPUPCIeMaxLinkWidth        *prometheus.GaugeVec
-	GPUNVLinkTXBytesPerSecond  *prometheus.GaugeVec
-	GPUNVLinkRXBytesPerSecond  *prometheus.GaugeVec
-	GPUNVLinkTransmitBytesPerSecond *prometheus.GaugeVec
-	GPUNVLinkReceiveBytesPerSecond *prometheus.GaugeVec
-	GPUXIDLastCode             *prometheus.GaugeVec
-	GPUMemoryCopyMax           *prometheus.GaugeVec
-	GPUMemoryUsedMax           *prometheus.GaugeVec
-	GPUPowerDrawMax            *prometheus.GaugeVec
-	GPUTemperatureWin          *prometheus.GaugeVec
-	GPUProfSMMax               *prometheus.GaugeVec
-	GPUProfDRAMMax             *prometheus.GaugeVec
-	GPUProfTensorMax           *prometheus.GaugeVec
-	GPUUtilizationAvg          *prometheus.GaugeVec
-	GPUMemoryCopyAvg           *prometheus.GaugeVec
-	GPUMemoryUsedAvg           *prometheus.GaugeVec
-	GPUPowerDrawAvg            *prometheus.GaugeVec
-	GPUTemperatureAvg          *prometheus.GaugeVec
-	GPUProfSMAvg               *prometheus.GaugeVec
-	GPUProfDRAMAvg             *prometheus.GaugeVec
-	GPUProfTensorAvg           *prometheus.GaugeVec
-	GPUThrottleReason          *prometheus.GaugeVec
-	GPUClockEventActive        *prometheus.GaugeVec
-	GPUProfSMActive            *prometheus.GaugeVec
+	GPUUtilizationCurrent       *prometheus.GaugeVec
+	GPUMemoryFree               *prometheus.GaugeVec
+	GPUMemoryUsed               *prometheus.GaugeVec
+	GPUMemoryTotal              *prometheus.GaugeVec
+	GPUMemoryReserved           *prometheus.GaugeVec
+	GPUBAR1MemoryFree           *prometheus.GaugeVec
+	GPUBAR1MemoryUsed           *prometheus.GaugeVec
+	GPUBAR1MemoryTotal          *prometheus.GaugeVec
+	GPUMemoryTemperature        *prometheus.GaugeVec
+	GPUMemoryTemperatureMaxOp   *prometheus.GaugeVec
+	GPUMemoryTemperatureMaxOld  *prometheus.GaugeVec
+	GPUTemperature              *prometheus.GaugeVec
+	GPUTemperatureMaxOp         *prometheus.GaugeVec
+	GPUTemperatureMaxOld        *prometheus.GaugeVec
+	GPUPowerDraw                *prometheus.GaugeVec
+	GPUPowerDrawInstant         *prometheus.GaugeVec
+	GPUPowerLimit               *prometheus.GaugeVec
+	GPUPowerEnforcedLimit       *prometheus.GaugeVec
+	GPUMemoryCopyUtil           *prometheus.GaugeVec
+	GPUEncoderUtil              *prometheus.GaugeVec
+	GPUDecoderUtil              *prometheus.GaugeVec
+	GPUMemoryUsedPct            *prometheus.GaugeVec
+	GPUSMClockHertz             *prometheus.GaugeVec
+	GPUMemoryClockHertz         *prometheus.GaugeVec
+	GPUPerformanceState         *prometheus.GaugeVec
+	GPUFanSpeed                 *prometheus.GaugeVec
+	GPUPCIeTransmitRate         *prometheus.GaugeVec
+	GPUPCIeReceiveRate          *prometheus.GaugeVec
+	GPUPCIeLinkGeneration       *prometheus.GaugeVec
+	GPUPCIeLinkWidth            *prometheus.GaugeVec
+	GPUPCIeMaxLinkGeneration    *prometheus.GaugeVec
+	GPUPCIeMaxLinkWidth         *prometheus.GaugeVec
+	GPUNVLinkTransmitRate       *prometheus.GaugeVec
+	GPUNVLinkReceiveRate        *prometheus.GaugeVec
+	GPUXIDLastCode              *prometheus.GaugeVec
+	GPUThrottleReason           *prometheus.GaugeVec
+	GPUClockEventActive         *prometheus.GaugeVec
 	GPUProfGraphicsEngineActive *prometheus.GaugeVec
-	GPUProfSMOccupancy         *prometheus.GaugeVec
-	GPUProfDRAMActive          *prometheus.GaugeVec
-	GPUProfTensorPipe          *prometheus.GaugeVec
-	GPUProfPipeFP64Active      *prometheus.GaugeVec
-	GPUProfPipeFP32Active      *prometheus.GaugeVec
-	GPUProfPipeFP16Active      *prometheus.GaugeVec
-	GPUProfPipeINTActive       *prometheus.GaugeVec
-	GPUProfTensorHMMAActive    *prometheus.GaugeVec
-	GPUProfTensorIMMAActive    *prometheus.GaugeVec
-	GPUProfTensorDFMAActive    *prometheus.GaugeVec
-	GPUDriverVersion           *prometheus.GaugeVec
-	GPUCudaVersion             *prometheus.GaugeVec
-	GPURequestCount            *prometheus.CounterVec
-	GPUActivityWindows         *prometheus.CounterVec
+	GPUProfSMActive             *prometheus.GaugeVec
+	GPUProfSMOccupancy          *prometheus.GaugeVec
+	GPUProfDRAMActive           *prometheus.GaugeVec
+	GPUProfTensorPipe           *prometheus.GaugeVec
+	GPUProfPipeFP64Active       *prometheus.GaugeVec
+	GPUProfPipeFP32Active       *prometheus.GaugeVec
+	GPUProfPipeFP16Active       *prometheus.GaugeVec
+	GPUProfPipeINTActive        *prometheus.GaugeVec
+	GPUProfTensorHMMAActive     *prometheus.GaugeVec
+	GPUProfTensorIMMAActive     *prometheus.GaugeVec
+	GPUProfTensorDFMAActive     *prometheus.GaugeVec
+
+	GPUFieldSupported            *prometheus.GaugeVec
+	GPUFieldAvailable            *prometheus.GaugeVec
+	GPUFieldLastSuccessTimestamp *prometheus.GaugeVec
+
+	GPUDriverVersion  *prometheus.GaugeVec
+	GPUCudaVersion    *prometheus.GaugeVec
+	ExporterBuildInfo *prometheus.GaugeVec
 
 	ExporterUp                   *prometheus.GaugeVec
 	ExporterCollectSuccess       *prometheus.GaugeVec
@@ -82,497 +80,211 @@ type Metrics struct {
 	ExporterCollectionDuration   *prometheus.GaugeVec
 	ExporterCollectionErrors     *prometheus.CounterVec
 	ExporterDiscoveredGPUs       *prometheus.GaugeVec
-	GPUActiveSeconds              *prometheus.CounterVec
-	GPUUtilizationWeightedSeconds *prometheus.CounterVec
-	GPUSMActiveWeightedSeconds    *prometheus.CounterVec
-	GPUDRAMActiveWeightedSeconds  *prometheus.CounterVec
-	GPUTensorWeightedSeconds      *prometheus.CounterVec
-	GPUEnergyJoules               *prometheus.CounterVec
-	GPUEnergyEstimatedJoules      *prometheus.CounterVec
-	GPUPCIeReplayTotal            *prometheus.CounterVec
-	GPUNVLinkErrors               *prometheus.CounterVec
-	GPUECCErrors                  *prometheus.CounterVec
-	GPURetiredPages               *prometheus.CounterVec
-	GPURetiredPagesPending        *prometheus.GaugeVec
-	GPURemappedRows               *prometheus.CounterVec
-	GPURowRemapFailure            *prometheus.GaugeVec
-	GPURowRemapPending            *prometheus.GaugeVec
-	GPUClockViolationSeconds      *prometheus.CounterVec
+	ExporterCollectedGPUs        *prometheus.GaugeVec
+	ExporterFailedGPUs           *prometheus.GaugeVec
+	GPUCollectSuccess            *prometheus.GaugeVec
+	GPUCollectionErrors          *prometheus.CounterVec
+
+	GPURequestCount          *prometheus.CounterVec
+	GPUActivityWindows       *prometheus.CounterVec
+	GPUActiveSeconds         *prometheus.CounterVec
+	GPUEnergyJoules          *prometheus.CounterVec
+	GPUEnergyEstimated       *prometheus.CounterVec
+	GPUPCIeReplayTotal       *prometheus.CounterVec
+	GPUECCErrors             *prometheus.CounterVec
+	GPURetiredPages          *prometheus.CounterVec
+	GPURetiredPagesPending   *prometheus.GaugeVec
+	GPURemappedRows          *prometheus.CounterVec
+	GPURowRemapFailure       *prometheus.GaugeVec
+	GPURowRemapPending       *prometheus.GaugeVec
+	GPUClockViolationSeconds *prometheus.CounterVec
+
+	WindowMetrics map[string]WindowMetric
+	Integrals     map[string]IntegralMetric
+	RateTotals    map[string]*prometheus.CounterVec
+
+	gpuGauges   []*prometheus.GaugeVec
+	gpuCounters []*prometheus.CounterVec
 }
 
 func NewMetrics(reg prometheus.Registerer) *Metrics {
 	m := &Metrics{
-		GPUUtilization: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_utilization_percent",
-			Help: "Peak GPU utilization percentage between Prometheus scrapes.",
-		}, gpuLabels()),
-		GPUUtilizationCurrent: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_utilization_percent_current",
-			Help: "Current DCGM_FI_DEV_GPU_UTIL GPU utilization percentage.",
-		}, gpuLabels()),
-		GPUMemoryFree: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_memory_free_bytes",
-			Help: "Free GPU framebuffer memory in bytes.",
-		}, gpuLabels()),
-		GPUMemoryUsed: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_memory_used_bytes",
-			Help: "Used GPU framebuffer memory in bytes.",
-		}, gpuLabels()),
-		GPUMemoryTotal: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_memory_total_bytes",
-			Help: "Total GPU framebuffer memory in bytes.",
-		}, gpuLabels()),
-		GPUMemoryReserved: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_framebuffer_memory_reserved_bytes",
-			Help: "Reserved GPU framebuffer memory in bytes.",
-		}, gpuLabels()),
-		GPUBAR1MemoryFree: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_bar1_memory_free_bytes",
-			Help: "Free GPU BAR1 memory in bytes.",
-		}, gpuLabels()),
-		GPUBAR1MemoryUsed: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_bar1_memory_used_bytes",
-			Help: "Used GPU BAR1 memory in bytes.",
-		}, gpuLabels()),
-		GPUBAR1MemoryTotal: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_bar1_memory_total_bytes",
-			Help: "Total GPU BAR1 memory in bytes.",
-		}, gpuLabels()),
-		GPUMemoryTemperature: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_memory_temperature_celsius",
-			Help: "DCGM_FI_DEV_MEMORY_TEMP memory temperature in Celsius.",
-		}, gpuLabels()),
-		GPUMemoryTemperatureMax: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_memory_temperature_max_celsius",
-			Help: "DCGM_FI_DEV_MEM_MAX_OP_TEMP maximum memory temperature in Celsius.",
-		}, gpuLabels()),
-		GPUTemperature: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_temperature_celsius",
-			Help: "GPU temperature in Celsius.",
-		}, gpuLabels()),
-		GPUTemperatureMax: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_temperature_max_celsius",
-			Help: "GPU maximum temperature in Celsius when available.",
-		}, gpuLabels()),
-		GPUPowerDraw: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_power_draw_watts",
-			Help: "GPU power draw in watts.",
-		}, gpuLabels()),
-		GPUPowerDrawInstant: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_power_draw_instant_watts",
-			Help: "DCGM_FI_DEV_POWER_USAGE_INSTANT instantaneous GPU power draw in watts.",
-		}, gpuLabels()),
-		GPUPowerLimit: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_power_limit_watts",
-			Help: "GPU power management limit in watts when available.",
-		}, gpuLabels()),
-		GPUPowerEnforcedLimit: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_power_enforced_limit_watts",
-			Help: "DCGM_FI_DEV_ENFORCED_POWER_LIMIT enforced power limit in watts.",
-		}, gpuLabels()),
-		GPUMemoryCopyUtil: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_memory_copy_utilization_percent",
-			Help: "DCGM_FI_DEV_MEM_COPY_UTIL memory copy utilization percentage.",
-		}, gpuLabels()),
-		GPUEncoderUtil: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_encoder_utilization_percent",
-			Help: "DCGM_FI_DEV_ENC_UTIL encoder utilization percentage.",
-		}, gpuLabels()),
-		GPUDecoderUtil: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_decoder_utilization_percent",
-			Help: "DCGM_FI_DEV_DEC_UTIL decoder utilization percentage.",
-		}, gpuLabels()),
-		GPUMemoryUsedPct: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_framebuffer_memory_used_percent",
-			Help: "DCGM_FI_DEV_FB_USED_PERCENT framebuffer memory used percentage.",
-		}, gpuLabels()),
-		GPUSMClockHertz: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_sm_clock_hertz",
-			Help: "DCGM_FI_DEV_SM_CLOCK streaming multiprocessor clock in hertz.",
-		}, gpuLabels()),
-		GPUMemoryClockHertz: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_memory_clock_hertz",
-			Help: "DCGM_FI_DEV_MEM_CLOCK memory clock in hertz.",
-		}, gpuLabels()),
-		GPUPerformanceState: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_performance_state",
-			Help: "DCGM_FI_DEV_PSTATE current GPU performance state.",
-		}, gpuLabels()),
-		GPUFanSpeed: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_fan_speed_percent",
-			Help: "DCGM_FI_DEV_FAN_SPEED fan speed percentage.",
-		}, gpuLabels()),
-		GPUPCIeTXBytesPerSecond: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_pcie_tx_bytes_per_second",
-			Help: "DCGM_FI_DEV_PCIE_TX_THROUGHPUT PCIe transmit throughput in bytes per second.",
-		}, gpuLabels()),
-		GPUPCIeRXBytesPerSecond: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_pcie_rx_bytes_per_second",
-			Help: "DCGM_FI_DEV_PCIE_RX_THROUGHPUT PCIe receive throughput in bytes per second.",
-		}, gpuLabels()),
-		GPUPCIeTransmitBytesPerSecond: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_pcie_transmit_bytes_per_second",
-			Help: "DCGM_FI_PROF_PCIE_TX_BYTES PCIe transmit rate in bytes per second.",
-		}, gpuLabels()),
-		GPUPCIeReceiveBytesPerSecond: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_pcie_receive_bytes_per_second",
-			Help: "DCGM_FI_PROF_PCIE_RX_BYTES PCIe receive rate in bytes per second.",
-		}, gpuLabels()),
-		GPUPCIeLinkGeneration: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_pcie_link_generation",
-			Help: "DCGM_FI_DEV_PCIE_LINK_GEN current PCIe link generation.",
-		}, gpuLabels()),
-		GPUPCIeLinkWidth: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_pcie_link_width",
-			Help: "DCGM_FI_DEV_PCIE_LINK_WIDTH current PCIe link width.",
-		}, gpuLabels()),
-		GPUPCIeMaxLinkGeneration: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_pcie_max_link_generation",
-			Help: "DCGM_FI_DEV_PCIE_MAX_LINK_GEN maximum PCIe link generation.",
-		}, gpuLabels()),
-		GPUPCIeMaxLinkWidth: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_pcie_max_link_width",
-			Help: "DCGM_FI_DEV_PCIE_MAX_LINK_WIDTH maximum PCIe link width.",
-		}, gpuLabels()),
-		GPUNVLinkTXBytesPerSecond: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_nvlink_tx_bytes_per_second",
-			Help: "DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_TOTAL NVLink transmit bandwidth in bytes per second.",
-		}, gpuLabels()),
-		GPUNVLinkRXBytesPerSecond: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_nvlink_rx_bytes_per_second",
-			Help: "DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_TOTAL NVLink receive bandwidth in bytes per second.",
-		}, gpuLabels()),
-		GPUNVLinkTransmitBytesPerSecond: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_nvlink_transmit_bytes_per_second",
-			Help: "DCGM_FI_PROF_NVLINK_TX_BYTES NVLink transmit rate in bytes per second.",
-		}, gpuLabels()),
-		GPUNVLinkReceiveBytesPerSecond: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_nvlink_receive_bytes_per_second",
-			Help: "DCGM_FI_PROF_NVLINK_RX_BYTES NVLink receive rate in bytes per second.",
-		}, gpuLabels()),
-		GPUXIDLastCode: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_xid_last_code",
-			Help: "DCGM_FI_DEV_XID_ERRORS last XID error code reported by the driver.",
-		}, gpuLabels()),
-		GPUMemoryCopyMax: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_memory_copy_utilization_percent_max",
-			Help: "Peak memory copy utilization percentage between Prometheus scrapes.",
-		}, gpuLabels()),
-		GPUMemoryUsedMax: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_framebuffer_memory_used_percent_max",
-			Help: "Peak framebuffer memory used percentage between Prometheus scrapes.",
-		}, gpuLabels()),
-		GPUPowerDrawMax: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_power_draw_watts_max",
-			Help: "Peak GPU power draw in watts between Prometheus scrapes.",
-		}, gpuLabels()),
-		GPUTemperatureWin: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_temperature_celsius_max",
-			Help: "Peak GPU temperature in Celsius between Prometheus scrapes.",
-		}, gpuLabels()),
-		GPUProfSMMax: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_prof_sm_active_ratio_max",
-			Help: "Peak DCGM_FI_PROF_SM_ACTIVE ratio between Prometheus scrapes.",
-		}, gpuLabels()),
-		GPUProfDRAMMax: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_prof_dram_active_ratio_max",
-			Help: "Peak DCGM_FI_PROF_DRAM_ACTIVE ratio between Prometheus scrapes.",
-		}, gpuLabels()),
-		GPUProfTensorMax: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_prof_pipe_tensor_active_ratio_max",
-			Help: "Peak DCGM_FI_PROF_PIPE_TENSOR_ACTIVE ratio between Prometheus scrapes.",
-		}, gpuLabels()),
-		GPUUtilizationAvg: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_utilization_percent_avg",
-			Help: "Average GPU utilization percentage between Prometheus scrapes.",
-		}, gpuLabels()),
-		GPUMemoryCopyAvg: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_memory_copy_utilization_percent_avg",
-			Help: "Average memory copy utilization percentage between Prometheus scrapes.",
-		}, gpuLabels()),
-		GPUMemoryUsedAvg: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_framebuffer_memory_used_percent_avg",
-			Help: "Average framebuffer memory used percentage between Prometheus scrapes.",
-		}, gpuLabels()),
-		GPUPowerDrawAvg: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_power_draw_watts_avg",
-			Help: "Average GPU power draw in watts between Prometheus scrapes.",
-		}, gpuLabels()),
-		GPUTemperatureAvg: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_temperature_celsius_avg",
-			Help: "Average GPU temperature in Celsius between Prometheus scrapes.",
-		}, gpuLabels()),
-		GPUProfSMAvg: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_prof_sm_active_ratio_avg",
-			Help: "Average DCGM_FI_PROF_SM_ACTIVE ratio between Prometheus scrapes.",
-		}, gpuLabels()),
-		GPUProfDRAMAvg: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_prof_dram_active_ratio_avg",
-			Help: "Average DCGM_FI_PROF_DRAM_ACTIVE ratio between Prometheus scrapes.",
-		}, gpuLabels()),
-		GPUProfTensorAvg: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_prof_pipe_tensor_active_ratio_avg",
-			Help: "Average DCGM_FI_PROF_PIPE_TENSOR_ACTIVE ratio between Prometheus scrapes.",
-		}, gpuLabels()),
-		GPUThrottleReason: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_clock_throttle_reasons",
-			Help: "DCGM_FI_DEV_CLOCK_THROTTLE_REASONS current clock throttle reason bitmask.",
-		}, gpuLabels()),
-		GPUClockEventActive: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_clock_event_active",
-			Help: "Decoded DCGM clock event reason state, exposed as 0 or 1 by reason.",
-		}, gpuLabelsWith("reason")),
-		GPUProfGraphicsEngineActive: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_prof_graphics_engine_active_ratio",
-			Help: "DCGM_FI_PROF_GR_ENGINE_ACTIVE ratio of time the graphics engine was active.",
-		}, gpuLabels()),
-		GPUProfSMActive: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_prof_sm_active_ratio",
-			Help: "DCGM_FI_PROF_SM_ACTIVE ratio of time streaming multiprocessors were active.",
-		}, gpuLabels()),
-		GPUProfSMOccupancy: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_prof_sm_occupancy_ratio",
-			Help: "DCGM_FI_PROF_SM_OCCUPANCY ratio of active warps to theoretical maximum warps.",
-		}, gpuLabels()),
-		GPUProfDRAMActive: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_prof_dram_active_ratio",
-			Help: "DCGM_FI_PROF_DRAM_ACTIVE ratio of time the device memory interface was active.",
-		}, gpuLabels()),
-		GPUProfTensorPipe: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_prof_pipe_tensor_active_ratio",
-			Help: "DCGM_FI_PROF_PIPE_TENSOR_ACTIVE ratio of time the tensor pipe was active.",
-		}, gpuLabels()),
-		GPUProfPipeFP64Active: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_prof_pipe_fp64_active_ratio",
-			Help: "DCGM_FI_PROF_PIPE_FP64_ACTIVE ratio of time the FP64 pipe was active.",
-		}, gpuLabels()),
-		GPUProfPipeFP32Active: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_prof_pipe_fp32_active_ratio",
-			Help: "DCGM_FI_PROF_PIPE_FP32_ACTIVE ratio of time the FP32 pipe was active.",
-		}, gpuLabels()),
-		GPUProfPipeFP16Active: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_prof_pipe_fp16_active_ratio",
-			Help: "DCGM_FI_PROF_PIPE_FP16_ACTIVE ratio of time the FP16 pipe was active.",
-		}, gpuLabels()),
-		GPUProfPipeINTActive: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_prof_pipe_int_active_ratio",
-			Help: "DCGM_FI_PROF_PIPE_INT_ACTIVE ratio of time the integer pipe was active.",
-		}, gpuLabels()),
-		GPUProfTensorHMMAActive: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_prof_pipe_tensor_hmma_active_ratio",
-			Help: "DCGM_FI_PROF_PIPE_TENSOR_HMMA_ACTIVE ratio of time the tensor HMMA pipe was active.",
-		}, gpuLabels()),
-		GPUProfTensorIMMAActive: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_prof_pipe_tensor_imma_active_ratio",
-			Help: "DCGM_FI_PROF_PIPE_TENSOR_IMMA_ACTIVE ratio of time the tensor IMMA pipe was active.",
-		}, gpuLabels()),
-		GPUProfTensorDFMAActive: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_prof_pipe_tensor_dfma_active_ratio",
-			Help: "DCGM_FI_PROF_PIPE_TENSOR_DFMA_ACTIVE ratio of time the tensor DFMA pipe was active.",
-		}, gpuLabels()),
-		GPUDriverVersion: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_driver_version_info",
-			Help: "GPU driver version info with value 1.",
-		}, []string{"gpu_driver_version", "hostname"}),
-		GPUCudaVersion: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_cuda_version_info",
-			Help: "CUDA driver version info with value 1.",
-		}, []string{"gpu_cuda_version", "hostname"}),
-		GPURequestCount: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Name: "gpu_request_count_total",
-			Help: "Deprecated alias for gpu_activity_windows_total.",
-		}, gpuLabels()),
-		GPUActivityWindows: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Name: "gpu_activity_windows_total",
-			Help: "Total inferred GPU activity windows detected by utilization threshold crossings.",
-		}, gpuLabels()),
-		ExporterUp: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_exporter_up",
-			Help: "Whether the last exporter DCGM collection succeeded.",
-		}, exporterLabels()),
-		ExporterCollectSuccess: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_exporter_collect_success",
-			Help: "Whether the last exporter DCGM collection succeeded.",
-		}, exporterLabels()),
-		ExporterLastSuccessTimestamp: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_exporter_last_success_timestamp_seconds",
-			Help: "Unix timestamp of the last successful DCGM collection.",
-		}, exporterLabels()),
-		ExporterCollectionDuration: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_exporter_collection_duration_seconds",
-			Help: "Duration of the last DCGM collection in seconds.",
-		}, exporterLabels()),
-		ExporterCollectionErrors: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Name: "gpu_exporter_collection_errors_total",
-			Help: "Total failed DCGM collection attempts.",
-		}, exporterLabels()),
-		ExporterDiscoveredGPUs: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_exporter_discovered_gpus",
-			Help: "Number of GPUs returned by the last successful DCGM collection.",
-		}, exporterLabels()),
-		GPUActiveSeconds: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Name: "gpu_active_seconds_total",
-			Help: "Total seconds where GPU utilization was above the configured active threshold.",
-		}, gpuLabels()),
-		GPUUtilizationWeightedSeconds: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Name: "gpu_utilization_weighted_seconds_total",
-			Help: "Total GPU utilization fraction-seconds, computed as utilization_percent / 100 * elapsed_seconds.",
-		}, gpuLabels()),
-		GPUSMActiveWeightedSeconds: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Name: "gpu_sm_active_weighted_seconds_total",
-			Help: "Total DCGM SM active ratio-seconds, computed as normalized SM active ratio * elapsed_seconds.",
-		}, gpuLabels()),
-		GPUDRAMActiveWeightedSeconds: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Name: "gpu_dram_active_weighted_seconds_total",
-			Help: "Total DCGM DRAM active ratio-seconds, computed as normalized DRAM active ratio * elapsed_seconds.",
-		}, gpuLabels()),
-		GPUTensorWeightedSeconds: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Name: "gpu_tensor_active_weighted_seconds_total",
-			Help: "Total DCGM tensor pipe active ratio-seconds, computed as normalized tensor pipe active ratio * elapsed_seconds.",
-		}, gpuLabels()),
-		GPUEnergyJoules: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Name: "gpu_energy_joules_total",
-			Help: "DCGM_FI_DEV_TOTAL_ENERGY_CONSUMPTION hardware energy counter in joules when available.",
-		}, gpuLabels()),
-		GPUEnergyEstimatedJoules: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Name: "gpu_energy_estimated_joules_total",
-			Help: "Total GPU energy estimate in joules, computed as power_watts * elapsed_seconds.",
-		}, gpuLabels()),
-		GPUPCIeReplayTotal: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Name: "gpu_pcie_replay_total",
-			Help: "DCGM_FI_DEV_PCIE_REPLAY_COUNTER hardware PCIe replay counter.",
-		}, gpuLabels()),
-		GPUNVLinkErrors: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Name: "gpu_nvlink_errors_total",
-			Help: "DCGM NVLink error and retry counters by type.",
-		}, gpuLabelsWith("type")),
-		GPUECCErrors: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Name: "gpu_ecc_errors_total",
-			Help: "DCGM ECC error counters by correctability, persistence, and location.",
-		}, gpuLabelsWith("correctability", "persistence", "location")),
-		GPURetiredPages: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Name: "gpu_retired_pages_total",
-			Help: "DCGM retired page counters by cause.",
-		}, gpuLabelsWith("cause")),
-		GPURetiredPagesPending: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_retired_pages_pending",
-			Help: "DCGM pages pending retirement.",
-		}, gpuLabels()),
-		GPURemappedRows: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Name: "gpu_remapped_rows_total",
-			Help: "DCGM remapped row counters by correctability.",
-		}, gpuLabelsWith("correctability")),
-		GPURowRemapFailure: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_row_remap_failure",
-			Help: "Whether DCGM reports a row remapping failure.",
-		}, gpuLabels()),
-		GPURowRemapPending: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "gpu_row_remap_pending",
-			Help: "Whether DCGM reports pending row remapping.",
-		}, gpuLabels()),
-		GPUClockViolationSeconds: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Name: "gpu_clock_violation_seconds_total",
-			Help: "Total DCGM clock or policy violation duration in seconds by reason.",
-		}, gpuLabelsWith("reason")),
+		WindowMetrics: make(map[string]WindowMetric),
+		Integrals:     make(map[string]IntegralMetric),
+		RateTotals:    make(map[string]*prometheus.CounterVec),
 	}
 
-	reg.MustRegister(
-		m.GPUUtilization,
-		m.GPUUtilizationCurrent,
-		m.GPUMemoryFree,
-		m.GPUMemoryUsed,
-		m.GPUMemoryTotal,
-		m.GPUMemoryReserved,
-		m.GPUBAR1MemoryFree,
-		m.GPUBAR1MemoryUsed,
-		m.GPUBAR1MemoryTotal,
-		m.GPUMemoryTemperature,
-		m.GPUMemoryTemperatureMax,
-		m.GPUTemperature,
-		m.GPUTemperatureMax,
-		m.GPUPowerDraw,
-		m.GPUPowerDrawInstant,
-		m.GPUPowerLimit,
-		m.GPUPowerEnforcedLimit,
-		m.GPUMemoryCopyUtil,
-		m.GPUEncoderUtil,
-		m.GPUDecoderUtil,
-		m.GPUMemoryUsedPct,
-		m.GPUSMClockHertz,
-		m.GPUMemoryClockHertz,
-		m.GPUPerformanceState,
-		m.GPUFanSpeed,
-		m.GPUPCIeTXBytesPerSecond,
-		m.GPUPCIeRXBytesPerSecond,
-		m.GPUPCIeTransmitBytesPerSecond,
-		m.GPUPCIeReceiveBytesPerSecond,
-		m.GPUPCIeLinkGeneration,
-		m.GPUPCIeLinkWidth,
-		m.GPUPCIeMaxLinkGeneration,
-		m.GPUPCIeMaxLinkWidth,
-		m.GPUNVLinkTXBytesPerSecond,
-		m.GPUNVLinkRXBytesPerSecond,
-		m.GPUNVLinkTransmitBytesPerSecond,
-		m.GPUNVLinkReceiveBytesPerSecond,
-		m.GPUXIDLastCode,
-		m.GPUMemoryCopyMax,
-		m.GPUMemoryUsedMax,
-		m.GPUPowerDrawMax,
-		m.GPUTemperatureWin,
-		m.GPUProfSMMax,
-		m.GPUProfDRAMMax,
-		m.GPUProfTensorMax,
-		m.GPUUtilizationAvg,
-		m.GPUMemoryCopyAvg,
-		m.GPUMemoryUsedAvg,
-		m.GPUPowerDrawAvg,
-		m.GPUTemperatureAvg,
-		m.GPUProfSMAvg,
-		m.GPUProfDRAMAvg,
-		m.GPUProfTensorAvg,
-		m.GPUThrottleReason,
-		m.GPUClockEventActive,
-		m.GPUProfGraphicsEngineActive,
-		m.GPUProfSMActive,
-		m.GPUProfSMOccupancy,
-		m.GPUProfDRAMActive,
-		m.GPUProfTensorPipe,
-		m.GPUProfPipeFP64Active,
-		m.GPUProfPipeFP32Active,
-		m.GPUProfPipeFP16Active,
-		m.GPUProfPipeINTActive,
-		m.GPUProfTensorHMMAActive,
-		m.GPUProfTensorIMMAActive,
-		m.GPUProfTensorDFMAActive,
-		m.GPUDriverVersion,
-		m.GPUCudaVersion,
-		m.GPURequestCount,
-		m.GPUActivityWindows,
-		m.ExporterUp,
-		m.ExporterCollectSuccess,
-		m.ExporterLastSuccessTimestamp,
-		m.ExporterCollectionDuration,
-		m.ExporterCollectionErrors,
-		m.ExporterDiscoveredGPUs,
-		m.GPUActiveSeconds,
-		m.GPUUtilizationWeightedSeconds,
-		m.GPUSMActiveWeightedSeconds,
-		m.GPUDRAMActiveWeightedSeconds,
-		m.GPUTensorWeightedSeconds,
-		m.GPUEnergyJoules,
-		m.GPUEnergyEstimatedJoules,
-		m.GPUPCIeReplayTotal,
-		m.GPUNVLinkErrors,
-		m.GPUECCErrors,
-		m.GPURetiredPages,
-		m.GPURetiredPagesPending,
-		m.GPURemappedRows,
-		m.GPURowRemapFailure,
-		m.GPURowRemapPending,
-		m.GPUClockViolationSeconds,
-	)
+	gg := func(name, help string, extra ...string) *prometheus.GaugeVec {
+		metric := prometheus.NewGaugeVec(prometheus.GaugeOpts{Name: name, Help: help}, gpuLabelsWith(extra...))
+		reg.MustRegister(metric)
+		m.gpuGauges = append(m.gpuGauges, metric)
+		return metric
+	}
+	gc := func(name, help string, extra ...string) *prometheus.CounterVec {
+		metric := prometheus.NewCounterVec(prometheus.CounterOpts{Name: name, Help: help}, gpuLabelsWith(extra...))
+		reg.MustRegister(metric)
+		m.gpuCounters = append(m.gpuCounters, metric)
+		return metric
+	}
+	eg := func(name, help string) *prometheus.GaugeVec {
+		metric := prometheus.NewGaugeVec(prometheus.GaugeOpts{Name: name, Help: help}, exporterLabels())
+		reg.MustRegister(metric)
+		return metric
+	}
+	ec := func(name, help string) *prometheus.CounterVec {
+		metric := prometheus.NewCounterVec(prometheus.CounterOpts{Name: name, Help: help}, exporterLabels())
+		reg.MustRegister(metric)
+		return metric
+	}
+
+	m.GPUUtilizationCurrent = gg("gpu_utilization_percent_current", "Latest valid DCGM GPU utilization percentage.")
+	m.GPUMemoryFree = gg("gpu_memory_free_bytes", "Free GPU framebuffer memory in bytes.")
+	m.GPUMemoryUsed = gg("gpu_memory_used_bytes", "Used GPU framebuffer memory in bytes.")
+	m.GPUMemoryTotal = gg("gpu_memory_total_bytes", "Total GPU framebuffer memory in bytes.")
+	m.GPUMemoryReserved = gg("gpu_framebuffer_memory_reserved_bytes", "Reserved GPU framebuffer memory in bytes.")
+	m.GPUBAR1MemoryFree = gg("gpu_bar1_memory_free_bytes", "Free GPU BAR1 memory in bytes.")
+	m.GPUBAR1MemoryUsed = gg("gpu_bar1_memory_used_bytes", "Used GPU BAR1 memory in bytes.")
+	m.GPUBAR1MemoryTotal = gg("gpu_bar1_memory_total_bytes", "Total GPU BAR1 memory in bytes.")
+	m.GPUMemoryTemperature = gg("gpu_memory_temperature_celsius", "Current GPU memory temperature in Celsius.")
+	m.GPUMemoryTemperatureMaxOp = gg("gpu_memory_temperature_max_operating_celsius", "Maximum operating memory temperature; slowdown occurs above this threshold.")
+	m.GPUMemoryTemperatureMaxOld = gg("gpu_memory_temperature_max_celsius", "Deprecated alias for gpu_memory_temperature_max_operating_celsius.")
+	m.GPUTemperature = gg("gpu_temperature_celsius", "Current GPU temperature in Celsius.")
+	m.GPUTemperatureMaxOp = gg("gpu_temperature_max_operating_celsius", "Maximum operating GPU temperature; slowdown occurs above this threshold.")
+	m.GPUTemperatureMaxOld = gg("gpu_temperature_max_celsius", "Deprecated alias for gpu_temperature_max_operating_celsius.")
+	m.GPUPowerDraw = gg("gpu_power_draw_watts", "GPU power draw in watts.")
+	m.GPUPowerDrawInstant = gg("gpu_power_draw_instant_watts", "Instantaneous GPU power draw in watts.")
+	m.GPUPowerLimit = gg("gpu_power_limit_watts", "GPU power management limit in watts.")
+	m.GPUPowerEnforcedLimit = gg("gpu_power_enforced_limit_watts", "Enforced GPU power limit in watts.")
+	m.GPUMemoryCopyUtil = gg("gpu_memory_copy_utilization_percent", "GPU memory-copy utilization percentage.")
+	m.GPUEncoderUtil = gg("gpu_encoder_utilization_percent", "GPU encoder utilization percentage.")
+	m.GPUDecoderUtil = gg("gpu_decoder_utilization_percent", "GPU decoder utilization percentage.")
+	m.GPUMemoryUsedPct = gg("gpu_framebuffer_memory_used_percent", "Framebuffer memory used percentage.")
+	m.GPUSMClockHertz = gg("gpu_sm_clock_hertz", "Streaming multiprocessor clock in hertz.")
+	m.GPUMemoryClockHertz = gg("gpu_memory_clock_hertz", "Memory clock in hertz.")
+	m.GPUPerformanceState = gg("gpu_performance_state", "Current GPU performance state.")
+	m.GPUFanSpeed = gg("gpu_fan_speed_percent", "GPU fan speed percentage.")
+	m.GPUPCIeTransmitRate = gg("gpu_pcie_transmit_bytes_per_second", "PCIe transmit rate from GPU to host; DCP is preferred with legacy DCGM fallback.")
+	m.GPUPCIeReceiveRate = gg("gpu_pcie_receive_bytes_per_second", "PCIe receive rate from host to GPU; DCP is preferred with legacy DCGM fallback.")
+	m.GPUPCIeLinkGeneration = gg("gpu_pcie_link_generation", "Current PCIe link generation.")
+	m.GPUPCIeLinkWidth = gg("gpu_pcie_link_width", "Current PCIe link width.")
+	m.GPUPCIeMaxLinkGeneration = gg("gpu_pcie_max_link_generation", "Maximum PCIe link generation.")
+	m.GPUPCIeMaxLinkWidth = gg("gpu_pcie_max_link_width", "Maximum PCIe link width.")
+	m.GPUNVLinkTransmitRate = gg("gpu_nvlink_transmit_bytes_per_second", "GPU-level DCP NVLink transmit rate in bytes per second.")
+	m.GPUNVLinkReceiveRate = gg("gpu_nvlink_receive_bytes_per_second", "GPU-level DCP NVLink receive rate in bytes per second.")
+	m.GPUXIDLastCode = gg("gpu_xid_last_code", "Last XID error code reported by the driver.")
+	m.GPUThrottleReason = gg("gpu_clock_throttle_reasons", "Current DCGM clock-event reason bitmask.")
+	m.GPUClockEventActive = gg("gpu_clock_event_active", "Decoded DCGM clock-event reason state, 0 or 1.", "reason")
+	m.GPUProfGraphicsEngineActive = gg("gpu_prof_graphics_engine_active_ratio", "Graphics-engine active ratio in the strict 0-1 range.")
+	m.GPUProfSMActive = gg("gpu_prof_sm_active_ratio", "Streaming-multiprocessor active ratio in the strict 0-1 range.")
+	m.GPUProfSMOccupancy = gg("gpu_prof_sm_occupancy_ratio", "SM occupancy ratio in the strict 0-1 range.")
+	m.GPUProfDRAMActive = gg("gpu_prof_dram_active_ratio", "Device-memory interface active ratio in the strict 0-1 range.")
+	m.GPUProfTensorPipe = gg("gpu_prof_pipe_tensor_active_ratio", "Tensor-pipe active ratio in the strict 0-1 range.")
+	m.GPUProfPipeFP64Active = gg("gpu_prof_pipe_fp64_active_ratio", "FP64-pipe active ratio in the strict 0-1 range.")
+	m.GPUProfPipeFP32Active = gg("gpu_prof_pipe_fp32_active_ratio", "FP32-pipe active ratio in the strict 0-1 range.")
+	m.GPUProfPipeFP16Active = gg("gpu_prof_pipe_fp16_active_ratio", "FP16-pipe active ratio in the strict 0-1 range.")
+	m.GPUProfPipeINTActive = gg("gpu_prof_pipe_int_active_ratio", "Integer-pipe active ratio in the strict 0-1 range.")
+	m.GPUProfTensorHMMAActive = gg("gpu_prof_pipe_tensor_hmma_active_ratio", "Tensor HMMA-pipe active ratio in the strict 0-1 range.")
+	m.GPUProfTensorIMMAActive = gg("gpu_prof_pipe_tensor_imma_active_ratio", "Tensor IMMA-pipe active ratio in the strict 0-1 range.")
+	m.GPUProfTensorDFMAActive = gg("gpu_prof_pipe_tensor_dfma_active_ratio", "Tensor DFMA-pipe active ratio in the strict 0-1 range.")
+
+	m.GPUFieldSupported = gg("gpu_dcgm_field_supported", "Whether the DCGM field is supported and watched for this GPU.", "field")
+	m.GPUFieldAvailable = gg("gpu_dcgm_field_available", "Whether the latest scheduled read returned a valid value for this DCGM field.", "field")
+	m.GPUFieldLastSuccessTimestamp = gg("gpu_dcgm_field_last_success_timestamp_seconds", "Unix timestamp of the last valid value for this DCGM field.", "field")
+
+	m.GPUDriverVersion = prometheus.NewGaugeVec(prometheus.GaugeOpts{Name: "gpu_driver_version_info", Help: "GPU driver version info with value 1."}, []string{"gpu_driver_version", "hostname"})
+	m.GPUCudaVersion = prometheus.NewGaugeVec(prometheus.GaugeOpts{Name: "gpu_cuda_version_info", Help: "CUDA driver version info with value 1."}, []string{"gpu_cuda_version", "hostname"})
+	m.ExporterBuildInfo = prometheus.NewGaugeVec(prometheus.GaugeOpts{Name: "gpu_exporter_build_info", Help: "GPU exporter build information with value 1."}, []string{"version"})
+	reg.MustRegister(m.GPUDriverVersion, m.GPUCudaVersion, m.ExporterBuildInfo)
+
+	m.ExporterUp = eg("gpu_exporter_up", "Whether the exporter could query the DCGM device list during the last collection.")
+	m.ExporterCollectSuccess = eg("gpu_exporter_collect_success", "Whether every discovered GPU and scheduled watcher group succeeded during the last collection.")
+	m.ExporterLastSuccessTimestamp = eg("gpu_exporter_last_success_timestamp_seconds", "Unix timestamp of the last complete successful collection.")
+	m.ExporterCollectionDuration = eg("gpu_exporter_collection_duration_seconds", "Duration of the last collection in seconds.")
+	m.ExporterCollectionErrors = ec("gpu_exporter_collection_errors_total", "Total non-complete DCGM collection attempts.")
+	m.ExporterDiscoveredGPUs = eg("gpu_exporter_discovered_gpus", "Number of DCGM-supported GPUs discovered during the last collection.")
+	m.ExporterCollectedGPUs = eg("gpu_exporter_collected_gpus", "Number of GPUs with a successful fast-field collection during the last collection.")
+	m.ExporterFailedGPUs = eg("gpu_exporter_failed_gpus", "Number of GPUs with one or more scheduled collection failures during the last collection.")
+	m.GPUCollectSuccess = gg("gpu_exporter_gpu_collect_success", "Whether the GPU had no scheduled collection failures in the last collection.")
+	m.GPUCollectionErrors = gc("gpu_exporter_gpu_collection_errors_total", "Total GPU collection errors by watcher group or stage.", "reason")
+
+	m.GPURequestCount = gc("gpu_request_count_total", "Deprecated alias for gpu_activity_windows_total.")
+	m.GPUActivityWindows = gc("gpu_activity_windows_total", "Total inferred GPU activity windows detected by utilization threshold crossings.")
+	m.GPUActiveSeconds = gc("gpu_active_seconds_total", "Observed seconds where GPU utilization exceeded the configured active threshold.")
+	m.GPUEnergyJoules = gc("gpu_energy_joules_total", "Hardware energy counter converted from DCGM millijoules to joules.")
+	m.GPUEnergyEstimated = gc("gpu_energy_estimated_joules_total", "Energy estimated by integrating observed power draw over time.")
+	m.GPUPCIeReplayTotal = gc("gpu_pcie_replay_total", "Monotonic PCIe replay count with hardware resets handled.")
+	m.GPUECCErrors = gc("gpu_ecc_errors_total", "ECC errors by correctability, persistence, and location.", "correctability", "persistence", "location")
+	m.GPURetiredPages = gc("gpu_retired_pages_total", "Retired page count by cause.", "cause")
+	m.GPURetiredPagesPending = gg("gpu_retired_pages_pending", "Pages pending retirement.")
+	m.GPURemappedRows = gc("gpu_remapped_rows_total", "Remapped row count by correctability.", "correctability")
+	m.GPURowRemapFailure = gg("gpu_row_remap_failure", "Whether DCGM reports a row-remapping failure.")
+	m.GPURowRemapPending = gg("gpu_row_remap_pending", "Whether DCGM reports pending row remapping.")
+	m.GPUClockViolationSeconds = gc("gpu_clock_violation_seconds_total", "Clock or policy violation duration converted from nanoseconds to seconds.", "reason")
+
+	addWindow := func(key, maxName, avgName, subject string) {
+		m.WindowMetrics[key] = WindowMetric{
+			Max: gg(maxName, "Maximum "+subject+" in the last completed exporter aggregation window."),
+			Avg: gg(avgName, "Average "+subject+" in the last completed exporter aggregation window."),
+		}
+	}
+	addWindow(aggUtilization, "gpu_utilization_percent", "gpu_utilization_percent_avg", "GPU utilization percentage")
+	addWindow(aggMemoryCopyUtil, "gpu_memory_copy_utilization_percent_max", "gpu_memory_copy_utilization_percent_avg", "memory-copy utilization percentage")
+	addWindow(aggMemoryUsedPct, "gpu_framebuffer_memory_used_percent_max", "gpu_framebuffer_memory_used_percent_avg", "framebuffer utilization percentage")
+	addWindow(aggPowerDraw, "gpu_power_draw_watts_max", "gpu_power_draw_watts_avg", "GPU power draw")
+	addWindow(aggTemperature, "gpu_temperature_celsius_max", "gpu_temperature_celsius_avg", "GPU temperature")
+	addWindow(aggProfGraphics, "gpu_prof_graphics_engine_active_ratio_max", "gpu_prof_graphics_engine_active_ratio_avg", "graphics-engine active ratio")
+	addWindow(aggProfSM, "gpu_prof_sm_active_ratio_max", "gpu_prof_sm_active_ratio_avg", "SM active ratio")
+	addWindow(aggProfSMOccupancy, "gpu_prof_sm_occupancy_ratio_max", "gpu_prof_sm_occupancy_ratio_avg", "SM occupancy ratio")
+	addWindow(aggProfDRAM, "gpu_prof_dram_active_ratio_max", "gpu_prof_dram_active_ratio_avg", "DRAM active ratio")
+	addWindow(aggProfTensor, "gpu_prof_pipe_tensor_active_ratio_max", "gpu_prof_pipe_tensor_active_ratio_avg", "tensor-pipe active ratio")
+	addWindow(aggProfFP64, "gpu_prof_pipe_fp64_active_ratio_max", "gpu_prof_pipe_fp64_active_ratio_avg", "FP64-pipe active ratio")
+	addWindow(aggProfFP32, "gpu_prof_pipe_fp32_active_ratio_max", "gpu_prof_pipe_fp32_active_ratio_avg", "FP32-pipe active ratio")
+	addWindow(aggProfFP16, "gpu_prof_pipe_fp16_active_ratio_max", "gpu_prof_pipe_fp16_active_ratio_avg", "FP16-pipe active ratio")
+	addWindow(aggProfINT, "gpu_prof_pipe_int_active_ratio_max", "gpu_prof_pipe_int_active_ratio_avg", "integer-pipe active ratio")
+	addWindow(aggProfTensorHMMA, "gpu_prof_pipe_tensor_hmma_active_ratio_max", "gpu_prof_pipe_tensor_hmma_active_ratio_avg", "tensor HMMA-pipe active ratio")
+	addWindow(aggProfTensorIMMA, "gpu_prof_pipe_tensor_imma_active_ratio_max", "gpu_prof_pipe_tensor_imma_active_ratio_avg", "tensor IMMA-pipe active ratio")
+	addWindow(aggProfTensorDFMA, "gpu_prof_pipe_tensor_dfma_active_ratio_max", "gpu_prof_pipe_tensor_dfma_active_ratio_avg", "tensor DFMA-pipe active ratio")
+	addWindow(aggPCIeTransmit, "gpu_pcie_transmit_bytes_per_second_max", "gpu_pcie_transmit_bytes_per_second_avg", "PCIe transmit rate")
+	addWindow(aggPCIeReceive, "gpu_pcie_receive_bytes_per_second_max", "gpu_pcie_receive_bytes_per_second_avg", "PCIe receive rate")
+	addWindow(aggNVLinkTransmit, "gpu_nvlink_transmit_bytes_per_second_max", "gpu_nvlink_transmit_bytes_per_second_avg", "NVLink transmit rate")
+	addWindow(aggNVLinkReceive, "gpu_nvlink_receive_bytes_per_second_max", "gpu_nvlink_receive_bytes_per_second_avg", "NVLink receive rate")
+
+	addIntegral := func(key, weightedName, observedName, subject string, percent bool) {
+		m.Integrals[key] = IntegralMetric{
+			Weighted: gc(weightedName, "Total observed "+subject+" fraction-seconds."),
+			Observed: gc(observedName, "Total seconds for which "+subject+" had valid DCGM samples."),
+			Percent:  percent,
+		}
+	}
+	addIntegral(aggUtilization, "gpu_utilization_weighted_seconds_total", "gpu_utilization_observed_seconds_total", "GPU utilization", true)
+	addIntegral(aggProfGraphics, "gpu_prof_graphics_engine_active_weighted_seconds_total", "gpu_prof_graphics_engine_active_observed_seconds_total", "graphics-engine activity", false)
+	addIntegral(aggProfSM, "gpu_sm_active_weighted_seconds_total", "gpu_sm_active_observed_seconds_total", "SM activity", false)
+	addIntegral(aggProfSMOccupancy, "gpu_prof_sm_occupancy_weighted_seconds_total", "gpu_prof_sm_occupancy_observed_seconds_total", "SM occupancy", false)
+	addIntegral(aggProfDRAM, "gpu_dram_active_weighted_seconds_total", "gpu_dram_active_observed_seconds_total", "DRAM activity", false)
+	addIntegral(aggProfTensor, "gpu_tensor_active_weighted_seconds_total", "gpu_tensor_active_observed_seconds_total", "tensor-pipe activity", false)
+	addIntegral(aggProfFP64, "gpu_prof_pipe_fp64_active_weighted_seconds_total", "gpu_prof_pipe_fp64_active_observed_seconds_total", "FP64-pipe activity", false)
+	addIntegral(aggProfFP32, "gpu_prof_pipe_fp32_active_weighted_seconds_total", "gpu_prof_pipe_fp32_active_observed_seconds_total", "FP32-pipe activity", false)
+	addIntegral(aggProfFP16, "gpu_prof_pipe_fp16_active_weighted_seconds_total", "gpu_prof_pipe_fp16_active_observed_seconds_total", "FP16-pipe activity", false)
+	addIntegral(aggProfINT, "gpu_prof_pipe_int_active_weighted_seconds_total", "gpu_prof_pipe_int_active_observed_seconds_total", "integer-pipe activity", false)
+	addIntegral(aggProfTensorHMMA, "gpu_prof_pipe_tensor_hmma_active_weighted_seconds_total", "gpu_prof_pipe_tensor_hmma_active_observed_seconds_total", "tensor HMMA-pipe activity", false)
+	addIntegral(aggProfTensorIMMA, "gpu_prof_pipe_tensor_imma_active_weighted_seconds_total", "gpu_prof_pipe_tensor_imma_active_observed_seconds_total", "tensor IMMA-pipe activity", false)
+	addIntegral(aggProfTensorDFMA, "gpu_prof_pipe_tensor_dfma_active_weighted_seconds_total", "gpu_prof_pipe_tensor_dfma_active_observed_seconds_total", "tensor DFMA-pipe activity", false)
+
+	m.RateTotals[aggPCIeTransmit] = gc("gpu_pcie_transmitted_bytes_total", "Estimated PCIe bytes transmitted from GPU to host, integrated from observed rates.")
+	m.RateTotals[aggPCIeReceive] = gc("gpu_pcie_received_bytes_total", "Estimated PCIe bytes received by GPU from host, integrated from observed rates.")
+	m.RateTotals[aggNVLinkTransmit] = gc("gpu_nvlink_transmitted_bytes_total", "Estimated GPU-level NVLink bytes transmitted, integrated from observed rates.")
+	m.RateTotals[aggNVLinkReceive] = gc("gpu_nvlink_received_bytes_total", "Estimated GPU-level NVLink bytes received, integrated from observed rates.")
 
 	return m
+}
+
+func (m *Metrics) DeleteGPU(labels prometheus.Labels) {
+	for _, metric := range m.gpuGauges {
+		metric.DeletePartialMatch(labels)
+	}
+	for _, metric := range m.gpuCounters {
+		metric.DeletePartialMatch(labels)
+	}
 }
 
 func gpuLabels() []string {

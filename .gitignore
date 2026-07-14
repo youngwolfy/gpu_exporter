@@ -11,14 +11,29 @@ coverage.out
 # Local environment
 .env
 .env.*
+!.env.example
+!**/.env.example
 
 # Editor and OS files
 .idea/
 .vscode/
+.vs/
 *.swp
 *~
 .DS_Store
 Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+*.stackdump
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
 
 # Release artifacts
 dist/
+distr/

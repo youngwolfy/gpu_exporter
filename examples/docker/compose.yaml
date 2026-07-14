@@ -1,10 +1,11 @@
 services:
   gpu-exporter:
-    image: gpu-exporter:0.4.0-cuda12
+    image: gpu-exporter:0.5.0-cuda12
     build:
       context: ../..
       dockerfile: examples/docker/Dockerfile
       args:
+        VERSION: "0.5.0"
         # 12 для хостов с CUDA 12.x, 13 для хостов с CUDA 13.x.
         DCGM_CUDA_MAJOR: "12"
     restart: unless-stopped
@@ -20,5 +21,9 @@ services:
     environment:
       GPU_EXPORTER_LOG_LEVEL: info
       #GPU_EXPORTER_SCRAPE_INTERVAL: 100ms
+      #GPU_EXPORTER_PROFILING_INTERVAL: 500ms
+      #GPU_EXPORTER_OPERATIONAL_INTERVAL: 1s
+      #GPU_EXPORTER_RELIABILITY_INTERVAL: 10s
+      #GPU_EXPORTER_WINDOW_INTERVAL: 15s
       #GPU_EXPORTER_ACTIVE_THRESHOLD: "1.0"
       #GPU_EXPORTER_MIN_REQUEST_TIME: 50ms

@@ -4,6 +4,17 @@
 
 - `gpu-exporter.json` — оперативный мониторинг GPU и отчётные KPI за выбранный период.
 
+В dashboard также включён раздел **Надёжность экспортера и DCGM** для метрик,
+добавленных в `0.5.0`:
+
+- полнота сбора и состояние каждого GPU (`gpu_exporter_*`);
+- поддержка, доступность и возраст DCGM-полей (`gpu_dcgm_field_*`);
+- PCIe/NVLink current, max, avg и интегральные byte counters;
+- profiling ratios для graphics, occupancy, FP/INT и Tensor sub-pipes;
+- ECC, retired pages, remapped rows, PCIe replay и clock violations;
+- температурный запас до maximum operating temperature;
+- доля времени с валидными utilization/DCP observations.
+
 Дашборд использует переменную Prometheus datasource `datasource` и метки,
 которые экспортирует `gpu_exporter`:
 
@@ -21,6 +32,11 @@
 3. Загрузите `gpu-exporter.json`.
 4. Выберите Prometheus datasource.
 
+При запуске [`../docker/compose.stack.yaml`](../docker/compose.stack.yaml)
+ручной импорт не нужен: datasource и dashboard загружаются через файлы из
+`provisioning/`. Пошаговая инструкция для Windows находится в
+[`../docker/WINDOWS.md`](../docker/WINDOWS.md).
+
 ## Выгрузка отчёта
 
 Для общего отчёта за выбранный диапазон времени выставьте нужный диапазон,
@@ -37,12 +53,14 @@
 простое среднее от gauge-значений. `avg_over_time` используется только для
 визуального усреднения gauge-метрик, для которых нет отдельного counter.
 
-Начиная с `gpu_exporter` `0.4.0`, отчётные KPI используют интегральные counter
+Начиная с `gpu_exporter` `0.5.0`, отчётные KPI используют интегральные counter
 метрики:
 
 - `gpu_active_seconds_total`
 - `gpu_utilization_weighted_seconds_total`
+- `gpu_utilization_observed_seconds_total`
 - `gpu_tensor_active_weighted_seconds_total`
+- `gpu_tensor_active_observed_seconds_total`
 - `gpu_energy_joules_total`
 
 Календарная средняя утилизация не является единственным KPI для LLM-инференса.

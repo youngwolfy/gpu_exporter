@@ -1,0 +1,87 @@
+name: gpu-exporter-stack
+
+services:
+  gpu-exporter:
+    image: gpu-exporter:${GPU_EXPORTER_VERSION:-0.5.0}-cuda${DCGM_CUDA_MAJOR:-12}
+    build:
+      context: ../..
+      dockerfile: examples/docker/Dockerfile
+      args:
+        VERSION: ${GPU_EXPORTER_VERSION:-0.5.0}
+        DCGM_CUDA_MAJOR: ${DCGM_CUDA_MAJOR:-12}
+    restart: unless-stopped
+    cap_add:
+      - SYS_ADMIN
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities:
+                - gpu
+    environment:
+      GPU_EXPORTER_LOG_LEVEL: info
+      GPU_EXPORTER_ADDR: 0.0.0.0:9990
+    ports:
+      - "127.0.0.1:9990:9990"
+
+  prometheus:
+    image: prom/prometheus:v3.12.0
+    restart: unless-stopped
+    depends_on:
+      - gpu-exporter
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=30d
+      - --web.enable-lifecycle
+    volumes:
+      - ../prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "127.0.0.1:9090:9090"
+
+  grafana:
+    image: grafana/grafana:13.0.2
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_PLUGINS_PREINSTALL_DISABLED: "true"
+      GF_PLUGINS_PREINSTALL_AUTO_UPDATE: "false"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ../grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ../grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ../grafana/gpu-exporter.json:/var/lib/grafana/dashboards/gpu-exporter.json:ro
+    ports:
+      - "127.0.0.1:3000:3000"
+
+  grafana-mcp:
+    image: grafana/mcp-grafana:0.14.0
+    restart: unless-stopped
+    depends_on:
+      - grafana
+    command:
+      - -t
+      - streamable-http
+      - --address
+      - 0.0.0.0:8000
+      - --endpoint-path
+      - /mcp
+      - --disable-write
+    environment:
+      GRAFANA_URL: http://grafana:3000
+      GRAFANA_USERNAME: ${GRAFANA_ADMIN_USER:-admin}
+      GRAFANA_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GRAFANA_ORG_ID: "1"
+    ports:
+      - "127.0.0.1:8000:8000"
+
+volumes:
+  prometheus-data:
+  grafana-data:

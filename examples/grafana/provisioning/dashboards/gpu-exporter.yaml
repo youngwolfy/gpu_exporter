@@ -1,0 +1,13 @@
+apiVersion: 1
+
+providers:
+  - name: gpu-exporter
+    orgId: 1
+    folder: GPU Exporter
+    type: file
+    disableDeletion: false
+    allowUiUpdates: true
+    updateIntervalSeconds: 10
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false

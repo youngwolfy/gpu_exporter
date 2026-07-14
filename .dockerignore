@@ -3,6 +3,7 @@
 .dockerignore
 
 dist
+distr
 gpu-exporter
 *.exe
 *.test
