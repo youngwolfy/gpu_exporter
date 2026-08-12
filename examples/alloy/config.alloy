@@ -1,19 +1,124 @@
-// Пример конфигурации Grafana Alloy для опроса gpu-exporter.
-//
-// ВАЖНО: окно агрегации (*_max / *_avg) сбрасывается при каждом запросе
-// /metrics, поэтому экспортер должен опрашивать РОВНО ОДИН агент.
-prometheus.scrape "gpu_exporter" {
-	targets = [{"__address__" = "127.0.0.1:9990"}]
-
-	job_name = "gpu-exporter"
-	scrape_interval = "5s"
-	scrape_timeout  = "3s"
-
-	forward_to = [prometheus.remote_write.default.receiver]
+logging {
+  level  = "info"
+  format = "logfmt"
 }
 
 prometheus.remote_write "default" {
-	endpoint {
-		url = "http://prometheus.example.local:9090/api/v1/write"
-	}
+  endpoint {
+    url = sys.env("PROMETHEUS_REMOTE_WRITE_URL")
+  }
+}
+
+loki.write "default" {
+  endpoint {
+    url = sys.env("LOKI_PUSH_URL")
+  }
+}
+
+prometheus.relabel "node_labels" {
+  forward_to = [prometheus.remote_write.default.receiver]
+
+  rule {
+    target_label = "hostname"
+    replacement  = sys.env("NODE_HOSTNAME")
+  }
+
+  rule {
+    target_label = "project"
+    replacement  = sys.env("NODE_PROJECT")
+  }
+}
+
+loki.relabel "node_labels" {
+  forward_to = [loki.write.default.receiver]
+
+  rule {
+    target_label = "hostname"
+    replacement  = sys.env("NODE_HOSTNAME")
+  }
+
+  rule {
+    target_label = "project"
+    replacement  = sys.env("NODE_PROJECT")
+  }
+}
+
+
+
+prometheus.exporter.cadvisor "docker" {
+  docker_host      = "unix:///var/run/docker.sock"
+  docker_only      = true
+  storage_duration = "5m"
+}
+
+prometheus.scrape "docker" {
+  targets         = prometheus.exporter.cadvisor.docker.targets
+  job_name        = "docker"
+  scrape_interval = "15s"
+  scrape_timeout  = "10s"
+
+  forward_to = [prometheus.relabel.node_labels.receiver]
+}
+
+discovery.relabel "gpu_exporter" {
+  targets = [{
+    "__address__"        = "127.0.0.1:9990",
+    "__meta_gpu_enabled" = sys.env("GPU_ENABLED"),
+  }]
+
+  rule {
+    source_labels = ["__meta_gpu_enabled"]
+    regex         = "true"
+    action        = "keep"
+  }
+}
+
+prometheus.scrape "gpu_exporter" {
+  targets         = discovery.relabel.gpu_exporter.output
+  job_name        = "gpu-exporter"
+  scrape_interval = "5s"
+  scrape_timeout  = "3s"
+
+  forward_to = [prometheus.relabel.node_labels.receiver]
+}
+
+discovery.docker "docker_logs" {
+  host             = "unix:///var/run/docker.sock"
+  refresh_interval = "10s"
+}
+
+discovery.relabel "docker_log_labels" {
+  targets = []
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "container"
+    replacement   = "$1"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "service_name"
+    replacement   = "$1"
+  }
+
+  rule {
+    source_labels = [
+      "__meta_docker_container_label_com_docker_compose_service",
+    ]
+    regex         = "(.+)"
+    target_label  = "service_name"
+    replacement   = "$1"
+  }
+}
+
+loki.source.docker "docker" {
+  host          = "unix:///var/run/docker.sock"
+  targets       = discovery.docker.docker_logs.targets
+  labels        = {"job" = "docker"}
+  relabel_rules = discovery.relabel.docker_log_labels.rules
+
+  forward_to = [loki.relabel.node_labels.receiver]
 }
