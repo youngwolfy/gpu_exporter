@@ -1,0 +1,38 @@
+services:
+  alloy:
+    image: grafana/alloy:latest
+    container_name: alloy
+    restart: unless-stopped
+    privileged: true
+    environment:
+      NODE_HOSTNAME: "${NODE_HOSTNAME}"
+      NODE_PROJECT: "${NODE_PROJECT}"
+      PROMETHEUS_REMOTE_WRITE_URL: "${PROMETHEUS_REMOTE_WRITE_URL}"
+      LOKI_PUSH_URL: "${LOKI_PUSH_URL}"
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy/alloy.config
+    ports:
+      - "127.0.0.1:12345:12345"
+    volumes:
+      - ./alloy.config:/etc/alloy/alloy.config:ro
+      - alloy-data:/var/lib/alloy/data
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /proc:/host/proc:ro
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
+      - /dev/disk:/dev/disk:ro
+
+  gpu-exporter:
+    image: gpu-exporter:latest
+    container_name: gpu-exporter
+    restart: unless-stopped
+    expose:
+      - "9990"
+
+volumes:
+  alloy-data:
