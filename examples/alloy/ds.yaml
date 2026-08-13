@@ -1,0 +1,38 @@
+apiVersion: 1
+datasources:
+  - name: Prometheus Local
+    uid: prometheus-local
+    type: prometheus
+    access: proxy
+    orgId: 1
+    url: $LOCAL_PROMETHEUS_URL
+    isDefault: true
+
+  - name: Loki Local
+    uid: loki-local
+    type: loki
+    access: proxy
+    orgId: 1
+    url: $LOCAL_LOKI_URL
+
+  - name: Prometheus Remote
+    uid: prometheus-remote
+    type: prometheus
+    access: proxy
+    orgId: 1
+    url: $REMOTE_MASTER_URL
+    basicAuth: true
+    basicAuthUser: $REMOTE_GRAFANA_USER
+    secureJsonData:
+      basicAuthPassword: $REMOTE_GRAFANA_PASSWORD
+
+  - name: Loki Remote
+    uid: loki-remote
+    type: loki
+    access: proxy
+    orgId: 1
+    url: $REMOTE_MASTER_URL
+    basicAuth: true
+    basicAuthUser: $REMOTE_GRAFANA_USER
+    secureJsonData:
+      basicAuthPassword: $REMOTE_GRAFANA_PASSWORD
