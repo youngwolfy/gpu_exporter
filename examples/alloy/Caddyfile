@@ -1,0 +1,51 @@
+monitor.example.com {
+	encode zstd gzip
+
+	route {
+		@prometheus_write {
+			method POST
+			path /api/v1/write
+		}
+
+		handle @prometheus_write {
+			basic_auth {
+				{$ALLOY_WRITER_USER} {$ALLOY_WRITER_PASSWORD_HASH}
+			}
+
+			reverse_proxy 127.0.0.1:9090
+		}
+
+		@loki_push {
+			method POST
+			path /loki/api/v1/push
+		}
+
+		handle @loki_push {
+			basic_auth {
+				{$ALLOY_WRITER_USER} {$ALLOY_WRITER_PASSWORD_HASH}
+			}
+
+			reverse_proxy 127.0.0.1:3100
+		}
+
+		handle /api/v1/* {
+			basic_auth {
+				{$GRAFANA_READER_USER} {$GRAFANA_READER_PASSWORD_HASH}
+			}
+
+			reverse_proxy 127.0.0.1:9090
+		}
+
+		handle /loki/* {
+			basic_auth {
+				{$GRAFANA_READER_USER} {$GRAFANA_READER_PASSWORD_HASH}
+			}
+
+			reverse_proxy 127.0.0.1:3100
+		}
+
+		handle {
+			respond "Not found" 404
+		}
+	}
+}
