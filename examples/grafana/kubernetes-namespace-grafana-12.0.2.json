@@ -1,0 +1,4140 @@
+{
+  "__inputs": [
+    {
+      "name": "DS_PROMETHEUS",
+      "label": "Prometheus",
+      "description": "Источник с kube-state-metrics вашего Kubernetes",
+      "type": "datasource",
+      "pluginId": "prometheus",
+      "pluginName": "Prometheus"
+    }
+  ],
+  "__requires": [
+    {
+      "type": "grafana",
+      "id": "grafana",
+      "name": "Grafana",
+      "version": "12.0.2"
+    },
+    {
+      "type": "datasource",
+      "id": "prometheus",
+      "name": "Prometheus",
+      "version": "1.0.0"
+    },
+    {
+      "type": "panel",
+      "id": "stat",
+      "name": "stat",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "timeseries",
+      "name": "timeseries",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "table",
+      "name": "table",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "bargauge",
+      "name": "bargauge",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "text",
+      "name": "text",
+      "version": ""
+    }
+  ],
+  "annotations": {
+    "list": []
+  },
+  "description": "Состояние приложений одного namespace по kube-state-metrics. Только метрики со скриншотов. Укажите Namespace, выберите кластер при необходимости. Подробности ресурсов, PVC и HPA свёрнуты. Requests/limits и квоты не являются фактическим потреблением CPU/RAM.",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "uid": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "id": 1,
+      "type": "text",
+      "title": "Namespace · состояние приложений",
+      "description": "",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 4
+      },
+      "pluginVersion": "12.0.2",
+      "options": {
+        "mode": "markdown",
+        "content": "**Начало:** замените `YOUR_NAMESPACE` в поле **Namespace** на своё имя и нажмите Enter. Если источник содержит несколько кластеров, выберите **Кластер**.\n\n**Pod** ограничивает только панели подов и их requests/limits. Deployment, квоты, HPA и PVC показывают весь выбранный namespace. Requests/limits — настройки контейнеров; PVC — запрошенный размер. **Фактического CPU/RAM, трафика и занятого диска в этих метриках нет.** «Нет данных»/пустая таблица сами по себе не подтверждают исправность."
+      }
+    },
+    {
+      "id": 2,
+      "type": "row",
+      "title": "01 · Быстрая оценка · выбранные Pod",
+      "description": "",
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 24,
+        "h": 1
+      },
+      "pluginVersion": "12.0.2",
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Активные Pod",
+      "description": "Pending + Running + Unknown. Succeeded/Failed исключены из активных. Нет серий — нет данных, не ноль.",
+      "gridPos": {
+        "x": 0,
+        "y": 5,
+        "w": 4,
+        "h": 4
+      },
+      "pluginVersion": "12.0.2",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "refId": "A",
+          "expr": "sum(max by (cluster, namespace, pod, uid) (kube_pod_status_phase{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\", pod=~\"${pod:regex}\", phase=~\"Pending|Running|Unknown\"}))",
+          "editorMode": "code",
+          "format": "time_series",
+          "instant": true,
+          "range": false,
+          "legendFormat": "",
+          "exemplar": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "—",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "null",
+                "result": {
+                  "text": "Нет данных",
+                  "color": "gray"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        }
+      }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Ready среди активных",
+      "description": "Ready=true среди Pending/Running/Unknown. Завершённые Jobs не ухудшают показатель. Если активных Pod нет, процент не определён.",
+      "gridPos": {
+        "x": 4,
+        "y": 5,
+        "w": 4,
+        "h": 4
+      },
+      "pluginVersion": "12.0.2",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "refId": "A",
+          "expr": "100 * sum((max by (cluster, namespace, pod, uid) (kube_pod_status_ready{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\", pod=~\"${pod:regex}\", condition=\"true\"})) * on (cluster, namespace, pod, uid) (max by (cluster, namespace, pod, uid) (kube_pod_status_phase{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\", pod=~\"${pod:regex}\", phase=~\"Pending|Running|Unknown\"}))) / (sum(max by (cluster, namespace, pod, uid) (kube_pod_status_phase{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\", pod=~\"${pod:regex}\", phase=~\"Pending|Running|Unknown\"})) > 0)",
+          "editorMode": "code",
+          "format": "time_series",
+          "instant": true,
+          "range": false,
+          "legendFormat": "",
+          "exemplar": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 1,
+          "noValue": "—",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 90
+              },
+              {
+                "color": "green",
+                "value": 100
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "null",
+                "result": {
+                  "text": "Нет данных",
+                  "color": "gray"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        }
+      }
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Активные без Ready",
+      "description": "Активные Pod, для которых condition=true имеет значение 0. Pending при запуске также попадает сюда. Удаляемые Pod могут оставаться до удаления из API.",
+      "gridPos": {
+        "x": 8,
+        "y": 5,
+        "w": 4,
+        "h": 4
+      },
+      "pluginVersion": "12.0.2",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "refId": "A",
+          "expr": "sum((1 - (max by (cluster, namespace, pod, uid) (kube_pod_status_ready{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\", pod=~\"${pod:regex}\", condition=\"true\"}))) * on (cluster, namespace, pod, uid) (max by (cluster, namespace, pod, uid) (kube_pod_status_phase{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\", pod=~\"${pod:regex}\", phase=~\"Pending|Running|Unknown\"})))",
+          "editorMode": "code",
+          "format": "time_series",
+          "instant": true,
+          "range": false,
+          "legendFormat": "",
+          "exemplar": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "—",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 3
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "null",
+                "result": {
+                  "text": "Нет данных",
+                  "color": "gray"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        }
+      }
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Pending Pod",
+      "description": "Текущая фаза Pending. Возможны ожидание scheduling, image pull, init containers. Причину смотрите ниже.",
+      "gridPos": {
+        "x": 12,
+        "y": 5,
+        "w": 4,
+        "h": 4
+      },
+      "pluginVersion": "12.0.2",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "refId": "A",
+          "expr": "sum(max by (cluster, namespace, pod, uid) (kube_pod_status_phase{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\", pod=~\"${pod:regex}\", phase=\"Pending\"}))",
+          "editorMode": "code",
+          "format": "time_series",
+          "instant": true,
+          "range": false,
+          "legendFormat": "",
+          "exemplar": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "—",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 3
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "null",
+                "result": {
+                  "text": "Нет данных",
+                  "color": "gray"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        }
+      }
+    },
+    {
+      "id": 7,
+      "type": "stat",
+      "title": "Failed / Unknown Pod",
+      "description": "Текущие объекты Pod в Failed или Unknown. Failed Jobs тоже учитываются; это не только работающие сервисы.",
+      "gridPos": {
+        "x": 16,
+        "y": 5,
+        "w": 4,
+        "h": 4
+      },
+      "pluginVersion": "12.0.2",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "refId": "A",
+          "expr": "sum(max by (cluster, namespace, pod, uid) (kube_pod_status_phase{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\", pod=~\"${pod:regex}\", phase=~\"Failed|Unknown\"}))",
+          "editorMode": "code",
+          "format": "time_series",
+          "instant": true,
+          "range": false,
+          "legendFormat": "",
+          "exemplar": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "—",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 3
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "null",
+                "result": {
+                  "text": "Нет данных",
+                  "color": "gray"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        }
+      }
+    },
+    {
+      "id": 8,
+      "type": "stat",
+      "title": "Перезапуски · 1 час",
+      "description": "Оценка increase за последние 1h до конца диапазона. Обычные + init контейнеры, включая уже удалённые Pod при Pod=All. Округление отображения; increase может быть дробным.",
+      "gridPos": {
+        "x": 20,
+        "y": 5,
+        "w": 4,
+        "h": 4
+      },
+      "pluginVersion": "12.0.2",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "refId": "A",
+          "expr": "sum((label_replace(max by (cluster, namespace, pod, uid, container) (increase(kube_pod_container_status_restarts_total{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\", pod=~\"${pod:regex}\"}[1h])), \"container_type\", \"app\", \"namespace\", \".*\") or label_replace(max by (cluster, namespace, pod, uid, container) (increase(kube_pod_init_container_status_restarts_total{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\", pod=~\"${pod:regex}\"}[1h])), \"container_type\", \"init\", \"namespace\", \".*\")))",
+          "editorMode": "code",
+          "format": "time_series",
+          "instant": true,
+          "range": false,
+          "legendFormat": "",
+          "exemplar": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "—",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 3
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "null",
+                "result": {
+                  "text": "Нет данных",
+                  "color": "gray"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        }
+      }
+    },
+    {
+      "id": 9,
+      "type": "row",
+      "title": "02 · Поды · история и диагностика",
+      "description": "",
+      "gridPos": {
+        "x": 0,
+        "y": 9,
+        "w": 24,
+        "h": 1
+      },
+      "pluginVersion": "12.0.2",
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "Фазы Pod во времени",
+      "description": "Количество Pod по фазе на каждом шаге. История удалённых Pod сохраняется в Prometheus в пределах retention.",
+      "gridPos": {
+        "x": 0,
+        "y": 10,
+        "w": 12,
+        "h": 8
+      },
+      "pluginVersion": "12.0.2",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "refId": "A",
+          "expr": "sum by (phase) (max by (cluster, namespace, pod, uid, phase) (kube_pod_status_phase{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\", pod=~\"${pod:regex}\"}))",
+          "editorMode": "code",
+          "format": "time_series",
+          "instant": false,
+          "range": true,
+          "legendFormat": "{{phase}}",
+          "exemplar": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "—",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "null",
+                "result": {
+                  "text": "Нет данных",
+                  "color": "gray"
+                }
+              }
+            }
+          ],
+          "min": 0,
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 18,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 2,
+            "pointSize": 4,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "normal"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Running"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "green"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Pending"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "orange"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Failed"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Unknown"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "purple"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Succeeded"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "interval": "1m",
+      "maxDataPoints": 600,
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc",
+          "hideZeros": false
+        }
+      }
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "Частота перезапусков · в минуту",
+      "description": "Сглаженная скорость перезапусков app/init. rate рассчитывается до max-дедупликации реплик kube-state-metrics. Для окна используется $__rate_interval.",
+      "gridPos": {
+        "x": 12,
+        "y": 10,
+        "w": 12,
+        "h": 8
+      },
+      "pluginVersion": "12.0.2",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "refId": "A",
+          "expr": "60 * sum by (container_type) ((label_replace(max by (cluster, namespace, pod, uid, container) (rate(kube_pod_container_status_restarts_total{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\", pod=~\"${pod:regex}\"}[$__rate_interval])), \"container_type\", \"app\", \"namespace\", \".*\") or label_replace(max by (cluster, namespace, pod, uid, container) (rate(kube_pod_init_container_status_restarts_total{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\", pod=~\"${pod:regex}\"}[$__rate_interval])), \"container_type\", \"init\", \"namespace\", \".*\")))",
+          "editorMode": "code",
+          "format": "time_series",
+          "instant": false,
+          "range": true,
+          "legendFormat": "{{container_type}}",
+          "exemplar": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 2,
+          "noValue": "—",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "null",
+                "result": {
+                  "text": "Нет данных",
+                  "color": "gray"
+                }
+              }
+            }
+          ],
+          "min": 0,
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 5,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 2,
+            "pointSize": 4,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "interval": "1m",
+      "maxDataPoints": 600,
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc",
+          "hideZeros": false
+        }
+      }
+    },
+    {
+      "id": 12,
+      "type": "table",
+      "title": "Pod сейчас · фаза, Ready и перезапуски",
+      "description": "Текущие Pod выбранного фильтра; Ready 0/1; возраст с создания; перезапуски app+init за последний час. owner — непосредственный создатель (например ReplicaSet), не обязательно Deployment. Успешно завершённый Job может иметь Ready=0. Не все строки обязаны присутствовать при недоступной метрике.",
+      "gridPos": {
+        "x": 0,
+        "y": 18,
+        "w": 24,
+        "h": 10
+      },
+      "pluginVersion": "12.0.2",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "—",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "null",
+                "result": {
+                  "text": "Нет данных",
+                  "color": "gray"
+                }
+              }
+            }
+          ],
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false,
+            "filterable": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Ready"
+            },
+            "properties": [
+              {
+                "id": "min",
+                "value": 0
+              },
+              {
+                "id": "max",
+                "value": 1
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "0": {
+                        "text": "Нет",
+                        "color": "orange"
+                      },
+                      "1": {
+                        "text": "Да",
+                        "color": "green"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Возраст"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Рестарты 1h"
+            },
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "orange",
+                      "value": 1
+                    },
+                    {
+                      "color": "red",
+                      "value": 3
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "refId": "A",
+          "expr": "(max by (cluster, namespace, pod, uid, phase) (kube_pod_status_phase{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\", pod=~\"${pod:regex}\"}) == 1) * on (cluster, namespace, pod, uid) group_left (node, created_by_kind, created_by_name) (max by (cluster, namespace, pod, uid, node, created_by_kind, created_by_name) (kube_pod_info{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\", pod=~\"${pod:regex}\"}))",
+          "editorMode": "code",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "legendFormat": "",
+          "exemplar": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "refId": "B",
+          "expr": "max by (cluster, namespace, pod, uid) (kube_pod_status_ready{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\", pod=~\"${pod:regex}\", condition=\"true\"})",
+          "editorMode": "code",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "legendFormat": "",
+          "exemplar": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "refId": "C",
+          "expr": "sum by (cluster, namespace, pod, uid) ((label_replace(max by (cluster, namespace, pod, uid, container) (increase(kube_pod_container_status_restarts_total{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\", pod=~\"${pod:regex}\"}[1h])), \"container_type\", \"app\", \"namespace\", \".*\") or label_replace(max by (cluster, namespace, pod, uid, container) (increase(kube_pod_init_container_status_restarts_total{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\", pod=~\"${pod:regex}\"}[1h])), \"container_type\", \"init\", \"namespace\", \".*\"))) and on (cluster, namespace, pod, uid) (max by (cluster, namespace, pod, uid) (kube_pod_info{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\", pod=~\"${pod:regex}\"}))",
+          "editorMode": "code",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "legendFormat": "",
+          "exemplar": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "refId": "D",
+          "expr": "time() - (max by (cluster, namespace, pod, uid) (kube_pod_created{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\", pod=~\"${pod:regex}\"}))",
+          "editorMode": "code",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "legendFormat": "",
+          "exemplar": false
+        }
+      ],
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "filter": {
+            "id": "byRefId",
+            "options": "A"
+          },
+          "options": {
+            "excludeByName": {},
+            "indexByName": {},
+            "renameByName": {
+              "Value": "_present"
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "filter": {
+            "id": "byRefId",
+            "options": "B"
+          },
+          "options": {
+            "excludeByName": {},
+            "indexByName": {},
+            "renameByName": {
+              "Value": "Ready"
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "filter": {
+            "id": "byRefId",
+            "options": "C"
+          },
+          "options": {
+            "excludeByName": {},
+            "indexByName": {},
+            "renameByName": {
+              "Value": "Рестарты 1h"
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "filter": {
+            "id": "byRefId",
+            "options": "D"
+          },
+          "options": {
+            "excludeByName": {},
+            "indexByName": {},
+            "renameByName": {
+              "Value": "Возраст"
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {},
+            "indexByName": {},
+            "renameByName": {
+              "Value #A": "_present",
+              "Value #B": "Ready",
+              "Value #C": "Рестарты 1h",
+              "Value #D": "Возраст",
+              "cluster": "Кластер",
+              "pod": "Pod",
+              "deployment": "Deployment",
+              "container": "Контейнер",
+              "node": "Узел",
+              "phase": "Фаза",
+              "reason": "Причина",
+              "source": "Источник",
+              "persistentvolumeclaim": "PVC",
+              "storageclass": "StorageClass",
+              "resourcequota": "ResourceQuota",
+              "resource": "Ресурс",
+              "horizontalpodautoscaler": "HPA",
+              "created_by_kind": "Owner kind",
+              "created_by_name": "Owner"
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "uid": true,
+              "__name__": true,
+              "namespace": true,
+              "_present": true
+            },
+            "indexByName": {
+              "Кластер": 0,
+              "Pod": 1,
+              "Фаза": 2,
+              "Ready": 3,
+              "Рестарты 1h": 4,
+              "Возраст": 5,
+              "Узел": 6,
+              "Owner kind": 7,
+              "Owner": 8
+            },
+            "renameByName": {}
+          }
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "countRows": false,
+          "fields": ""
+        },
+        "sortBy": [
+          {
+            "displayName": "Рестарты 1h",
+            "desc": true
+          }
+        ]
+      }
+    },
+    {
+      "id": 13,
+      "type": "table",
+      "title": "Причины ожидания и состояния Pod · сейчас",
+      "description": "Только текущие reason-серии со значением 1: CrashLoopBackOff, ImagePullBackOff, ContainerCreating, Evicted и другие. Обычное ContainerCreating может быть штатным. Пусто = нет активных reason-серий либо эта метрика не экспортируется. Последняя причина завершения намеренно не выдаётся за текущую ошибку.",
+      "gridPos": {
+        "x": 0,
+        "y": 28,
+        "w": 24,
+        "h": 7
+      },
+      "pluginVersion": "12.0.2",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "—",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "null",
+                "result": {
+                  "text": "Нет данных",
+                  "color": "gray"
+                }
+              }
+            }
+          ],
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false,
+            "filterable": true
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "refId": "A",
+          "expr": "label_replace((max by (cluster, namespace, pod, uid, container, reason) (kube_pod_container_status_waiting_reason{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\", pod=~\"${pod:regex}\"}) == 1), \"source\", \"app waiting\", \"namespace\", \".*\") or label_replace((max by (cluster, namespace, pod, uid, container, reason) (kube_pod_init_container_status_waiting_reason{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\", pod=~\"${pod:regex}\"}) == 1), \"source\", \"init waiting\", \"namespace\", \".*\") or label_replace((max by (cluster, namespace, pod, uid, reason) (kube_pod_status_reason{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\", pod=~\"${pod:regex}\"}) == 1), \"source\", \"pod reason\", \"namespace\", \".*\")",
+          "editorMode": "code",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "legendFormat": "",
+          "exemplar": false
+        }
+      ],
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "filter": {
+            "id": "byRefId",
+            "options": "A"
+          },
+          "options": {
+            "excludeByName": {},
+            "indexByName": {},
+            "renameByName": {
+              "Value": "_present"
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {},
+            "indexByName": {},
+            "renameByName": {
+              "Value #A": "_present",
+              "cluster": "Кластер",
+              "pod": "Pod",
+              "deployment": "Deployment",
+              "container": "Контейнер",
+              "node": "Узел",
+              "phase": "Фаза",
+              "reason": "Причина",
+              "source": "Источник",
+              "persistentvolumeclaim": "PVC",
+              "storageclass": "StorageClass",
+              "resourcequota": "ResourceQuota",
+              "resource": "Ресурс",
+              "horizontalpodautoscaler": "HPA"
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "uid": true,
+              "__name__": true,
+              "namespace": true,
+              "_present": true
+            },
+            "indexByName": {
+              "Кластер": 0,
+              "Pod": 1,
+              "Контейнер": 2,
+              "Источник": 3,
+              "Причина": 4
+            },
+            "renameByName": {}
+          }
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "countRows": false,
+          "fields": ""
+        }
+      }
+    },
+    {
+      "id": 14,
+      "type": "row",
+      "title": "03 · Deployment и квоты · весь namespace",
+      "description": "",
+      "gridPos": {
+        "x": 0,
+        "y": 35,
+        "w": 24,
+        "h": 1
+      },
+      "pluginVersion": "12.0.2",
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 15,
+      "type": "timeseries",
+      "title": "Deployment · реплики всего namespace",
+      "description": "Суммарные desired/available/updated только для Deployment. Фильтр Pod не применяется. Во время rollout обновлённых реплик может временно быть больше желаемых. StatefulSet/DaemonSet не включены: их метрик нет на скриншотах.",
+      "gridPos": {
+        "x": 0,
+        "y": 36,
+        "w": 12,
+        "h": 8
+      },
+      "pluginVersion": "12.0.2",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "refId": "A",
+          "expr": "sum(max by (cluster, namespace, deployment) (kube_deployment_spec_replicas{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\"}))",
+          "editorMode": "code",
+          "format": "time_series",
+          "instant": false,
+          "range": true,
+          "legendFormat": "Желаемые",
+          "exemplar": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "refId": "B",
+          "expr": "sum(max by (cluster, namespace, deployment) (kube_deployment_status_replicas_available{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\"}))",
+          "editorMode": "code",
+          "format": "time_series",
+          "instant": false,
+          "range": true,
+          "legendFormat": "Доступные",
+          "exemplar": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "refId": "C",
+          "expr": "sum(max by (cluster, namespace, deployment) (kube_deployment_status_replicas_updated{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\"}))",
+          "editorMode": "code",
+          "format": "time_series",
+          "instant": false,
+          "range": true,
+          "legendFormat": "Обновлённые",
+          "exemplar": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "—",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "null",
+                "result": {
+                  "text": "Нет данных",
+                  "color": "gray"
+                }
+              }
+            }
+          ],
+          "min": 0,
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 5,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 2,
+            "pointSize": 4,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "interval": "1m",
+      "maxDataPoints": 600,
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc",
+          "hideZeros": false
+        }
+      }
+    },
+    {
+      "id": 16,
+      "type": "bargauge",
+      "title": "ResourceQuota · 12 наиболее заполненных",
+      "description": "Used / hard × 100 по каждой квоте и ресурсу, без суммирования разных квот. Это учёт квоты Kubernetes, не фактическая загрузка CPU/RAM. Hard=0 не имеет процента и показан в подробной таблице. Нет ResourceQuota — нет данных. Фильтр Pod не применяется.",
+      "gridPos": {
+        "x": 12,
+        "y": 36,
+        "w": 12,
+        "h": 8
+      },
+      "pluginVersion": "12.0.2",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "refId": "A",
+          "expr": "topk(12, 100 * (max by (cluster, namespace, resourcequota, resource) (kube_resourcequota{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\", type=\"used\"})) / (max by (cluster, namespace, resourcequota, resource) (kube_resourcequota{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\", type=\"hard\"}) > 0))",
+          "editorMode": "code",
+          "format": "time_series",
+          "instant": true,
+          "range": false,
+          "legendFormat": "{{cluster}} {{resourcequota}} · {{resource}}",
+          "exemplar": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 1,
+          "noValue": "—",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 70
+              },
+              {
+                "color": "red",
+                "value": 90
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "null",
+                "result": {
+                  "text": "Нет данных",
+                  "color": "gray"
+                }
+              }
+            }
+          ],
+          "min": 0,
+          "max": 100
+        },
+        "overrides": []
+      },
+      "options": {
+        "displayMode": "gradient",
+        "minVizHeight": 14,
+        "minVizWidth": 0,
+        "namePlacement": "auto",
+        "orientation": "horizontal",
+        "showUnfilled": true,
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "sizing": "auto",
+        "valueMode": "color"
+      }
+    },
+    {
+      "id": 17,
+      "type": "table",
+      "title": "Deployment сейчас · доступность и rollout",
+      "description": "Не хватает = max(desired − available, 0). Scaled-to-zero не считается дефицитом. Paused=1 — rollout приостановлен; Generation lag = metadata_generation − observed_generation, минимум 0. Краткий дефицит при rollout нормален: длительность смотрите на графике. Фильтр Pod не применяется.",
+      "gridPos": {
+        "x": 0,
+        "y": 44,
+        "w": 24,
+        "h": 9
+      },
+      "pluginVersion": "12.0.2",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "—",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "null",
+                "result": {
+                  "text": "Нет данных",
+                  "color": "gray"
+                }
+              }
+            }
+          ],
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false,
+            "filterable": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Не хватает"
+            },
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "orange",
+                      "value": 1
+                    },
+                    {
+                      "color": "red",
+                      "value": 3
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Generation lag"
+            },
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "orange",
+                      "value": 1
+                    },
+                    {
+                      "color": "red",
+                      "value": 3
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "refId": "A",
+          "expr": "max by (cluster, namespace, deployment) (kube_deployment_spec_replicas{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\"})",
+          "editorMode": "code",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "legendFormat": "",
+          "exemplar": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "refId": "B",
+          "expr": "max by (cluster, namespace, deployment) (kube_deployment_status_replicas_available{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\"})",
+          "editorMode": "code",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "legendFormat": "",
+          "exemplar": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "refId": "C",
+          "expr": "max by (cluster, namespace, deployment) (kube_deployment_status_replicas_updated{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\"})",
+          "editorMode": "code",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "legendFormat": "",
+          "exemplar": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "refId": "D",
+          "expr": "clamp_min((max by (cluster, namespace, deployment) (kube_deployment_spec_replicas{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\"})) - (max by (cluster, namespace, deployment) (kube_deployment_status_replicas_available{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\"})), 0)",
+          "editorMode": "code",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "legendFormat": "",
+          "exemplar": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "refId": "E",
+          "expr": "max by (cluster, namespace, deployment) (kube_deployment_spec_paused{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\"})",
+          "editorMode": "code",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "legendFormat": "",
+          "exemplar": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "refId": "F",
+          "expr": "clamp_min((max by (cluster, namespace, deployment) (kube_deployment_metadata_generation{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\"})) - (max by (cluster, namespace, deployment) (kube_deployment_status_observed_generation{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\"})), 0)",
+          "editorMode": "code",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "legendFormat": "",
+          "exemplar": false
+        }
+      ],
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "filter": {
+            "id": "byRefId",
+            "options": "A"
+          },
+          "options": {
+            "excludeByName": {},
+            "indexByName": {},
+            "renameByName": {
+              "Value": "Желаемые"
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "filter": {
+            "id": "byRefId",
+            "options": "B"
+          },
+          "options": {
+            "excludeByName": {},
+            "indexByName": {},
+            "renameByName": {
+              "Value": "Доступные"
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "filter": {
+            "id": "byRefId",
+            "options": "C"
+          },
+          "options": {
+            "excludeByName": {},
+            "indexByName": {},
+            "renameByName": {
+              "Value": "Обновлённые"
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "filter": {
+            "id": "byRefId",
+            "options": "D"
+          },
+          "options": {
+            "excludeByName": {},
+            "indexByName": {},
+            "renameByName": {
+              "Value": "Не хватает"
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "filter": {
+            "id": "byRefId",
+            "options": "E"
+          },
+          "options": {
+            "excludeByName": {},
+            "indexByName": {},
+            "renameByName": {
+              "Value": "Paused"
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "filter": {
+            "id": "byRefId",
+            "options": "F"
+          },
+          "options": {
+            "excludeByName": {},
+            "indexByName": {},
+            "renameByName": {
+              "Value": "Generation lag"
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {},
+            "indexByName": {},
+            "renameByName": {
+              "Value #A": "Желаемые",
+              "Value #B": "Доступные",
+              "Value #C": "Обновлённые",
+              "Value #D": "Не хватает",
+              "Value #E": "Paused",
+              "Value #F": "Generation lag",
+              "cluster": "Кластер",
+              "pod": "Pod",
+              "deployment": "Deployment",
+              "container": "Контейнер",
+              "node": "Узел",
+              "phase": "Фаза",
+              "reason": "Причина",
+              "source": "Источник",
+              "persistentvolumeclaim": "PVC",
+              "storageclass": "StorageClass",
+              "resourcequota": "ResourceQuota",
+              "resource": "Ресурс",
+              "horizontalpodautoscaler": "HPA"
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "uid": true,
+              "__name__": true,
+              "namespace": true
+            },
+            "indexByName": {
+              "Кластер": 0,
+              "Deployment": 1,
+              "Желаемые": 2,
+              "Доступные": 3,
+              "Обновлённые": 4,
+              "Не хватает": 5,
+              "Paused": 6,
+              "Generation lag": 7
+            },
+            "renameByName": {}
+          }
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "countRows": false,
+          "fields": ""
+        },
+        "sortBy": [
+          {
+            "displayName": "Не хватает",
+            "desc": true
+          }
+        ]
+      }
+    },
+    {
+      "id": 22,
+      "type": "row",
+      "title": "04 · Подробнее: requests / limits и квоты",
+      "description": "",
+      "gridPos": {
+        "x": 0,
+        "y": 54,
+        "w": 24,
+        "h": 1
+      },
+      "pluginVersion": "12.0.2",
+      "collapsed": true,
+      "panels": [
+        {
+          "id": 18,
+          "type": "timeseries",
+          "title": "CPU · requests и limits активных Pod",
+          "description": "Сумма объявленных ресурсов обычных контейнеров в Pending/Running/Unknown, с фильтром Pod. Это НЕ потребление и НЕ точная эффективная потребность планировщика: init containers, Pod overhead и Pod-level resources сюда не входят. Отсутствующий limit не означает нулевой limit. Сумма Limits включает только явно экспортированные значения.",
+          "gridPos": {
+            "x": 0,
+            "y": 55,
+            "w": 12,
+            "h": 8
+          },
+          "pluginVersion": "12.0.2",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "refId": "A",
+              "expr": "sum ((max by (cluster, namespace, pod, uid, container) (kube_pod_container_resource_requests{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\", pod=~\"${pod:regex}\", resource=\"cpu\"})) and on (cluster, namespace, pod, uid) (max by (cluster, namespace, pod, uid) (kube_pod_status_phase{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\", pod=~\"${pod:regex}\", phase=~\"Pending|Running|Unknown\"}) == 1))",
+              "editorMode": "code",
+              "format": "time_series",
+              "instant": false,
+              "range": true,
+              "legendFormat": "Requests",
+              "exemplar": false
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "refId": "B",
+              "expr": "sum ((max by (cluster, namespace, pod, uid, container) (kube_pod_container_resource_limits{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\", pod=~\"${pod:regex}\", resource=\"cpu\"})) and on (cluster, namespace, pod, uid) (max by (cluster, namespace, pod, uid) (kube_pod_status_phase{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\", pod=~\"${pod:regex}\", phase=~\"Pending|Running|Unknown\"}) == 1))",
+              "editorMode": "code",
+              "format": "time_series",
+              "instant": false,
+              "range": true,
+              "legendFormat": "Limits",
+              "exemplar": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "cores",
+              "decimals": 2,
+              "noValue": "—",
+              "color": {
+                "mode": "palette-classic"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "blue",
+                    "value": null
+                  }
+                ]
+              },
+              "mappings": [
+                {
+                  "type": "special",
+                  "options": {
+                    "match": "null",
+                    "result": {
+                      "text": "Нет данных",
+                      "color": "gray"
+                    }
+                  }
+                }
+              ],
+              "min": 0,
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 5,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "stepAfter",
+                "lineWidth": 2,
+                "pointSize": 4,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              }
+            },
+            "overrides": []
+          },
+          "interval": "1m",
+          "maxDataPoints": 600,
+          "options": {
+            "legend": {
+              "showLegend": true,
+              "displayMode": "list",
+              "placement": "bottom",
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc",
+              "hideZeros": false
+            }
+          }
+        },
+        {
+          "id": 19,
+          "type": "timeseries",
+          "title": "RAM · requests и limits активных Pod",
+          "description": "Сумма объявленных ресурсов обычных контейнеров в Pending/Running/Unknown, с фильтром Pod. Это НЕ потребление и НЕ точная эффективная потребность планировщика: init containers, Pod overhead и Pod-level resources сюда не входят. Отсутствующий limit не означает нулевой limit. Сумма Limits включает только явно экспортированные значения.",
+          "gridPos": {
+            "x": 12,
+            "y": 55,
+            "w": 12,
+            "h": 8
+          },
+          "pluginVersion": "12.0.2",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "refId": "A",
+              "expr": "sum ((max by (cluster, namespace, pod, uid, container) (kube_pod_container_resource_requests{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\", pod=~\"${pod:regex}\", resource=\"memory\"})) and on (cluster, namespace, pod, uid) (max by (cluster, namespace, pod, uid) (kube_pod_status_phase{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\", pod=~\"${pod:regex}\", phase=~\"Pending|Running|Unknown\"}) == 1))",
+              "editorMode": "code",
+              "format": "time_series",
+              "instant": false,
+              "range": true,
+              "legendFormat": "Requests",
+              "exemplar": false
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "refId": "B",
+              "expr": "sum ((max by (cluster, namespace, pod, uid, container) (kube_pod_container_resource_limits{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\", pod=~\"${pod:regex}\", resource=\"memory\"})) and on (cluster, namespace, pod, uid) (max by (cluster, namespace, pod, uid) (kube_pod_status_phase{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\", pod=~\"${pod:regex}\", phase=~\"Pending|Running|Unknown\"}) == 1))",
+              "editorMode": "code",
+              "format": "time_series",
+              "instant": false,
+              "range": true,
+              "legendFormat": "Limits",
+              "exemplar": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "bytes",
+              "decimals": 2,
+              "noValue": "—",
+              "color": {
+                "mode": "palette-classic"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "blue",
+                    "value": null
+                  }
+                ]
+              },
+              "mappings": [
+                {
+                  "type": "special",
+                  "options": {
+                    "match": "null",
+                    "result": {
+                      "text": "Нет данных",
+                      "color": "gray"
+                    }
+                  }
+                }
+              ],
+              "min": 0,
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 5,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "stepAfter",
+                "lineWidth": 2,
+                "pointSize": 4,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              }
+            },
+            "overrides": []
+          },
+          "interval": "1m",
+          "maxDataPoints": 600,
+          "options": {
+            "legend": {
+              "showLegend": true,
+              "displayMode": "list",
+              "placement": "bottom",
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc",
+              "hideZeros": false
+            }
+          }
+        },
+        {
+          "id": 20,
+          "type": "table",
+          "title": "Ресурсы по активным Pod · объявления обычных контейнеров",
+          "description": "Requests/limits агрегированы по обычным контейнерам Pod. Если limit задан только у части контейнеров, сумма неполная, а общий Pod не имеет показанного жёсткого потолка. Прочерк означает отсутствие серии, а не нулевое потребление. Фильтр Pod применяется.",
+          "gridPos": {
+            "x": 0,
+            "y": 63,
+            "w": 24,
+            "h": 9
+          },
+          "pluginVersion": "12.0.2",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "decimals": 0,
+              "noValue": "—",
+              "color": {
+                "mode": "palette-classic"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "blue",
+                    "value": null
+                  }
+                ]
+              },
+              "mappings": [
+                {
+                  "type": "special",
+                  "options": {
+                    "match": "null",
+                    "result": {
+                      "text": "Нет данных",
+                      "color": "gray"
+                    }
+                  }
+                }
+              ],
+              "custom": {
+                "align": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "inspect": false,
+                "filterable": true
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "CPU requests"
+                },
+                "properties": [
+                  {
+                    "id": "unit",
+                    "value": "cores"
+                  },
+                  {
+                    "id": "decimals",
+                    "value": 3
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "CPU limits"
+                },
+                "properties": [
+                  {
+                    "id": "unit",
+                    "value": "cores"
+                  },
+                  {
+                    "id": "decimals",
+                    "value": 3
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "RAM requests"
+                },
+                "properties": [
+                  {
+                    "id": "unit",
+                    "value": "bytes"
+                  },
+                  {
+                    "id": "decimals",
+                    "value": 2
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "RAM limits"
+                },
+                "properties": [
+                  {
+                    "id": "unit",
+                    "value": "bytes"
+                  },
+                  {
+                    "id": "decimals",
+                    "value": 2
+                  }
+                ]
+              }
+            ]
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "refId": "A",
+              "expr": "(max by (cluster, namespace, pod, uid) (kube_pod_info{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\", pod=~\"${pod:regex}\"})) and on (cluster, namespace, pod, uid) (max by (cluster, namespace, pod, uid) (kube_pod_status_phase{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\", pod=~\"${pod:regex}\", phase=~\"Pending|Running|Unknown\"}) == 1)",
+              "editorMode": "code",
+              "format": "table",
+              "instant": true,
+              "range": false,
+              "legendFormat": "",
+              "exemplar": false
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "refId": "B",
+              "expr": "sum by (cluster, namespace, pod, uid) ((max by (cluster, namespace, pod, uid, container) (kube_pod_container_resource_requests{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\", pod=~\"${pod:regex}\", resource=\"cpu\"})) and on (cluster, namespace, pod, uid) (max by (cluster, namespace, pod, uid) (kube_pod_status_phase{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\", pod=~\"${pod:regex}\", phase=~\"Pending|Running|Unknown\"}) == 1))",
+              "editorMode": "code",
+              "format": "table",
+              "instant": true,
+              "range": false,
+              "legendFormat": "",
+              "exemplar": false
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "refId": "C",
+              "expr": "sum by (cluster, namespace, pod, uid) ((max by (cluster, namespace, pod, uid, container) (kube_pod_container_resource_limits{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\", pod=~\"${pod:regex}\", resource=\"cpu\"})) and on (cluster, namespace, pod, uid) (max by (cluster, namespace, pod, uid) (kube_pod_status_phase{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\", pod=~\"${pod:regex}\", phase=~\"Pending|Running|Unknown\"}) == 1))",
+              "editorMode": "code",
+              "format": "table",
+              "instant": true,
+              "range": false,
+              "legendFormat": "",
+              "exemplar": false
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "refId": "D",
+              "expr": "sum by (cluster, namespace, pod, uid) ((max by (cluster, namespace, pod, uid, container) (kube_pod_container_resource_requests{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\", pod=~\"${pod:regex}\", resource=\"memory\"})) and on (cluster, namespace, pod, uid) (max by (cluster, namespace, pod, uid) (kube_pod_status_phase{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\", pod=~\"${pod:regex}\", phase=~\"Pending|Running|Unknown\"}) == 1))",
+              "editorMode": "code",
+              "format": "table",
+              "instant": true,
+              "range": false,
+              "legendFormat": "",
+              "exemplar": false
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "refId": "E",
+              "expr": "sum by (cluster, namespace, pod, uid) ((max by (cluster, namespace, pod, uid, container) (kube_pod_container_resource_limits{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\", pod=~\"${pod:regex}\", resource=\"memory\"})) and on (cluster, namespace, pod, uid) (max by (cluster, namespace, pod, uid) (kube_pod_status_phase{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\", pod=~\"${pod:regex}\", phase=~\"Pending|Running|Unknown\"}) == 1))",
+              "editorMode": "code",
+              "format": "table",
+              "instant": true,
+              "range": false,
+              "legendFormat": "",
+              "exemplar": false
+            }
+          ],
+          "transformations": [
+            {
+              "id": "merge",
+              "options": {}
+            },
+            {
+              "id": "organize",
+              "filter": {
+                "id": "byRefId",
+                "options": "A"
+              },
+              "options": {
+                "excludeByName": {},
+                "indexByName": {},
+                "renameByName": {
+                  "Value": "_present"
+                }
+              }
+            },
+            {
+              "id": "organize",
+              "filter": {
+                "id": "byRefId",
+                "options": "B"
+              },
+              "options": {
+                "excludeByName": {},
+                "indexByName": {},
+                "renameByName": {
+                  "Value": "CPU requests"
+                }
+              }
+            },
+            {
+              "id": "organize",
+              "filter": {
+                "id": "byRefId",
+                "options": "C"
+              },
+              "options": {
+                "excludeByName": {},
+                "indexByName": {},
+                "renameByName": {
+                  "Value": "CPU limits"
+                }
+              }
+            },
+            {
+              "id": "organize",
+              "filter": {
+                "id": "byRefId",
+                "options": "D"
+              },
+              "options": {
+                "excludeByName": {},
+                "indexByName": {},
+                "renameByName": {
+                  "Value": "RAM requests"
+                }
+              }
+            },
+            {
+              "id": "organize",
+              "filter": {
+                "id": "byRefId",
+                "options": "E"
+              },
+              "options": {
+                "excludeByName": {},
+                "indexByName": {},
+                "renameByName": {
+                  "Value": "RAM limits"
+                }
+              }
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {},
+                "indexByName": {},
+                "renameByName": {
+                  "Value #A": "_present",
+                  "Value #B": "CPU requests",
+                  "Value #C": "CPU limits",
+                  "Value #D": "RAM requests",
+                  "Value #E": "RAM limits",
+                  "cluster": "Кластер",
+                  "pod": "Pod",
+                  "deployment": "Deployment",
+                  "container": "Контейнер",
+                  "node": "Узел",
+                  "phase": "Фаза",
+                  "reason": "Причина",
+                  "source": "Источник",
+                  "persistentvolumeclaim": "PVC",
+                  "storageclass": "StorageClass",
+                  "resourcequota": "ResourceQuota",
+                  "resource": "Ресурс",
+                  "horizontalpodautoscaler": "HPA"
+                }
+              }
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "Time": true,
+                  "uid": true,
+                  "__name__": true,
+                  "namespace": true,
+                  "_present": true
+                },
+                "indexByName": {
+                  "Кластер": 0,
+                  "Pod": 1,
+                  "CPU requests": 2,
+                  "CPU limits": 3,
+                  "RAM requests": 4,
+                  "RAM limits": 5
+                },
+                "renameByName": {}
+              }
+            }
+          ],
+          "options": {
+            "showHeader": true,
+            "cellHeight": "sm",
+            "footer": {
+              "show": false,
+              "reducer": [
+                "sum"
+              ],
+              "countRows": false,
+              "fields": ""
+            }
+          }
+        },
+        {
+          "id": 21,
+          "type": "table",
+          "title": "ResourceQuota · все ресурсы и нулевые hard",
+          "description": "Все квоты выбранного namespace, независимо от Pod. CPU/requests.cpu/limits.cpu — cores; memory и storage — bytes; pods/count.* — количество. Для hard=0 процент не определён (прочерк); hard=0 запрещает положительный расход в рамках этой квоты. Для scoped quota Used относится к её scope.",
+          "gridPos": {
+            "x": 0,
+            "y": 72,
+            "w": 24,
+            "h": 9
+          },
+          "pluginVersion": "12.0.2",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "decimals": 0,
+              "noValue": "—",
+              "color": {
+                "mode": "palette-classic"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "blue",
+                    "value": null
+                  }
+                ]
+              },
+              "mappings": [
+                {
+                  "type": "special",
+                  "options": {
+                    "match": "null",
+                    "result": {
+                      "text": "Нет данных",
+                      "color": "gray"
+                    }
+                  }
+                }
+              ],
+              "custom": {
+                "align": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "inspect": false,
+                "filterable": true
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Used"
+                },
+                "properties": [
+                  {
+                    "id": "unit",
+                    "value": "short"
+                  },
+                  {
+                    "id": "decimals",
+                    "value": 3
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Hard"
+                },
+                "properties": [
+                  {
+                    "id": "unit",
+                    "value": "short"
+                  },
+                  {
+                    "id": "decimals",
+                    "value": 3
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Использовано %"
+                },
+                "properties": [
+                  {
+                    "id": "unit",
+                    "value": "percent"
+                  },
+                  {
+                    "id": "decimals",
+                    "value": 1
+                  },
+                  {
+                    "id": "thresholds",
+                    "value": {
+                      "mode": "absolute",
+                      "steps": [
+                        {
+                          "color": "green",
+                          "value": null
+                        },
+                        {
+                          "color": "orange",
+                          "value": 70
+                        },
+                        {
+                          "color": "red",
+                          "value": 90
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "id": "custom.cellOptions",
+                    "value": {
+                      "type": "color-text"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "refId": "A",
+              "expr": "max by (cluster, namespace, resourcequota, resource) (kube_resourcequota{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\", type=\"used\"})",
+              "editorMode": "code",
+              "format": "table",
+              "instant": true,
+              "range": false,
+              "legendFormat": "",
+              "exemplar": false
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "refId": "B",
+              "expr": "max by (cluster, namespace, resourcequota, resource) (kube_resourcequota{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\", type=\"hard\"})",
+              "editorMode": "code",
+              "format": "table",
+              "instant": true,
+              "range": false,
+              "legendFormat": "",
+              "exemplar": false
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "refId": "C",
+              "expr": "100 * (max by (cluster, namespace, resourcequota, resource) (kube_resourcequota{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\", type=\"used\"})) / (max by (cluster, namespace, resourcequota, resource) (kube_resourcequota{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\", type=\"hard\"}) > 0)",
+              "editorMode": "code",
+              "format": "table",
+              "instant": true,
+              "range": false,
+              "legendFormat": "",
+              "exemplar": false
+            }
+          ],
+          "transformations": [
+            {
+              "id": "merge",
+              "options": {}
+            },
+            {
+              "id": "organize",
+              "filter": {
+                "id": "byRefId",
+                "options": "A"
+              },
+              "options": {
+                "excludeByName": {},
+                "indexByName": {},
+                "renameByName": {
+                  "Value": "Used"
+                }
+              }
+            },
+            {
+              "id": "organize",
+              "filter": {
+                "id": "byRefId",
+                "options": "B"
+              },
+              "options": {
+                "excludeByName": {},
+                "indexByName": {},
+                "renameByName": {
+                  "Value": "Hard"
+                }
+              }
+            },
+            {
+              "id": "organize",
+              "filter": {
+                "id": "byRefId",
+                "options": "C"
+              },
+              "options": {
+                "excludeByName": {},
+                "indexByName": {},
+                "renameByName": {
+                  "Value": "Использовано %"
+                }
+              }
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {},
+                "indexByName": {},
+                "renameByName": {
+                  "Value #A": "Used",
+                  "Value #B": "Hard",
+                  "Value #C": "Использовано %",
+                  "cluster": "Кластер",
+                  "pod": "Pod",
+                  "deployment": "Deployment",
+                  "container": "Контейнер",
+                  "node": "Узел",
+                  "phase": "Фаза",
+                  "reason": "Причина",
+                  "source": "Источник",
+                  "persistentvolumeclaim": "PVC",
+                  "storageclass": "StorageClass",
+                  "resourcequota": "ResourceQuota",
+                  "resource": "Ресурс",
+                  "horizontalpodautoscaler": "HPA"
+                }
+              }
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "Time": true,
+                  "uid": true,
+                  "__name__": true,
+                  "namespace": true
+                },
+                "indexByName": {
+                  "Кластер": 0,
+                  "ResourceQuota": 1,
+                  "Ресурс": 2,
+                  "Used": 3,
+                  "Hard": 4,
+                  "Использовано %": 5
+                },
+                "renameByName": {}
+              }
+            }
+          ],
+          "options": {
+            "showHeader": true,
+            "cellHeight": "sm",
+            "footer": {
+              "show": false,
+              "reducer": [
+                "sum"
+              ],
+              "countRows": false,
+              "fields": ""
+            },
+            "sortBy": [
+              {
+                "displayName": "Использовано %",
+                "desc": true
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": 25,
+      "type": "row",
+      "title": "05 · Подробнее: PVC · весь namespace",
+      "description": "",
+      "gridPos": {
+        "x": 0,
+        "y": 55,
+        "w": 24,
+        "h": 1
+      },
+      "pluginVersion": "12.0.2",
+      "collapsed": true,
+      "panels": [
+        {
+          "id": 23,
+          "type": "timeseries",
+          "title": "PVC · фазы во времени",
+          "description": "Bound/Pending/Lost для всего namespace. Pod-фильтр не применяется. Pending при создании может быть штатным, длительный Pending и Lost требуют проверки.",
+          "gridPos": {
+            "x": 0,
+            "y": 56,
+            "w": 8,
+            "h": 8
+          },
+          "pluginVersion": "12.0.2",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "refId": "A",
+              "expr": "sum by (phase) (max by (cluster, namespace, persistentvolumeclaim, phase) (kube_persistentvolumeclaim_status_phase{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\"}))",
+              "editorMode": "code",
+              "format": "time_series",
+              "instant": false,
+              "range": true,
+              "legendFormat": "{{phase}}",
+              "exemplar": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "decimals": 0,
+              "noValue": "—",
+              "color": {
+                "mode": "palette-classic"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "blue",
+                    "value": null
+                  }
+                ]
+              },
+              "mappings": [
+                {
+                  "type": "special",
+                  "options": {
+                    "match": "null",
+                    "result": {
+                      "text": "Нет данных",
+                      "color": "gray"
+                    }
+                  }
+                }
+              ],
+              "min": 0,
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 18,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "stepAfter",
+                "lineWidth": 2,
+                "pointSize": 4,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "normal"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              }
+            },
+            "overrides": []
+          },
+          "interval": "1m",
+          "maxDataPoints": 600,
+          "options": {
+            "legend": {
+              "showLegend": true,
+              "displayMode": "list",
+              "placement": "bottom",
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc",
+              "hideZeros": false
+            }
+          }
+        },
+        {
+          "id": 24,
+          "type": "table",
+          "title": "PVC сейчас · фаза и запрошенный размер",
+          "description": "Запрошенный размер PVC из spec. Это не занятое место, не свободное место и не фактическая ёмкость тома. Для заполнения диска нужны kubelet_volume_stats_* или метрики приложения, которых нет на скриншотах.",
+          "gridPos": {
+            "x": 8,
+            "y": 56,
+            "w": 16,
+            "h": 8
+          },
+          "pluginVersion": "12.0.2",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "decimals": 0,
+              "noValue": "—",
+              "color": {
+                "mode": "palette-classic"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "blue",
+                    "value": null
+                  }
+                ]
+              },
+              "mappings": [
+                {
+                  "type": "special",
+                  "options": {
+                    "match": "null",
+                    "result": {
+                      "text": "Нет данных",
+                      "color": "gray"
+                    }
+                  }
+                }
+              ],
+              "custom": {
+                "align": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "inspect": false,
+                "filterable": true
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Запрошено"
+                },
+                "properties": [
+                  {
+                    "id": "unit",
+                    "value": "bytes"
+                  },
+                  {
+                    "id": "decimals",
+                    "value": 2
+                  }
+                ]
+              }
+            ]
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "refId": "A",
+              "expr": "(max by (cluster, namespace, persistentvolumeclaim, phase) (kube_persistentvolumeclaim_status_phase{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\"}) == 1) * on (cluster, namespace, persistentvolumeclaim) group_left (storageclass) (max by (cluster, namespace, persistentvolumeclaim, storageclass) (kube_persistentvolumeclaim_info{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\"}))",
+              "editorMode": "code",
+              "format": "table",
+              "instant": true,
+              "range": false,
+              "legendFormat": "",
+              "exemplar": false
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "refId": "B",
+              "expr": "max by (cluster, namespace, persistentvolumeclaim) (kube_persistentvolumeclaim_resource_requests_storage_bytes{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\"})",
+              "editorMode": "code",
+              "format": "table",
+              "instant": true,
+              "range": false,
+              "legendFormat": "",
+              "exemplar": false
+            }
+          ],
+          "transformations": [
+            {
+              "id": "merge",
+              "options": {}
+            },
+            {
+              "id": "organize",
+              "filter": {
+                "id": "byRefId",
+                "options": "A"
+              },
+              "options": {
+                "excludeByName": {},
+                "indexByName": {},
+                "renameByName": {
+                  "Value": "_present"
+                }
+              }
+            },
+            {
+              "id": "organize",
+              "filter": {
+                "id": "byRefId",
+                "options": "B"
+              },
+              "options": {
+                "excludeByName": {},
+                "indexByName": {},
+                "renameByName": {
+                  "Value": "Запрошено"
+                }
+              }
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {},
+                "indexByName": {},
+                "renameByName": {
+                  "Value #A": "_present",
+                  "Value #B": "Запрошено",
+                  "cluster": "Кластер",
+                  "pod": "Pod",
+                  "deployment": "Deployment",
+                  "container": "Контейнер",
+                  "node": "Узел",
+                  "phase": "Фаза",
+                  "reason": "Причина",
+                  "source": "Источник",
+                  "persistentvolumeclaim": "PVC",
+                  "storageclass": "StorageClass",
+                  "resourcequota": "ResourceQuota",
+                  "resource": "Ресурс",
+                  "horizontalpodautoscaler": "HPA"
+                }
+              }
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "Time": true,
+                  "uid": true,
+                  "__name__": true,
+                  "namespace": true,
+                  "_present": true
+                },
+                "indexByName": {
+                  "Кластер": 0,
+                  "PVC": 1,
+                  "Фаза": 2,
+                  "StorageClass": 3,
+                  "Запрошено": 4
+                },
+                "renameByName": {}
+              }
+            }
+          ],
+          "options": {
+            "showHeader": true,
+            "cellHeight": "sm",
+            "footer": {
+              "show": false,
+              "reducer": [
+                "sum"
+              ],
+              "countRows": false,
+              "fields": ""
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 28,
+      "type": "row",
+      "title": "06 · Подробнее: HPA · весь namespace",
+      "description": "",
+      "gridPos": {
+        "x": 0,
+        "y": 56,
+        "w": 24,
+        "h": 1
+      },
+      "pluginVersion": "12.0.2",
+      "collapsed": true,
+      "panels": [
+        {
+          "id": 26,
+          "type": "table",
+          "title": "HPA · реплики и границы",
+          "description": "HPA всего namespace. Расхождение current/desired возможно при нормальном масштабировании. На скриншотах нет метрик фактической загрузки CPU/RAM. Если HPA не создан, таблица пуста.",
+          "gridPos": {
+            "x": 0,
+            "y": 57,
+            "w": 16,
+            "h": 8
+          },
+          "pluginVersion": "12.0.2",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "decimals": 0,
+              "noValue": "—",
+              "color": {
+                "mode": "palette-classic"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "blue",
+                    "value": null
+                  }
+                ]
+              },
+              "mappings": [
+                {
+                  "type": "special",
+                  "options": {
+                    "match": "null",
+                    "result": {
+                      "text": "Нет данных",
+                      "color": "gray"
+                    }
+                  }
+                }
+              ],
+              "custom": {
+                "align": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "inspect": false,
+                "filterable": true
+              }
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "refId": "A",
+              "expr": "max by (cluster, namespace, horizontalpodautoscaler) (kube_horizontalpodautoscaler_status_current_replicas{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\"})",
+              "editorMode": "code",
+              "format": "table",
+              "instant": true,
+              "range": false,
+              "legendFormat": "",
+              "exemplar": false
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "refId": "B",
+              "expr": "max by (cluster, namespace, horizontalpodautoscaler) (kube_horizontalpodautoscaler_status_desired_replicas{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\"})",
+              "editorMode": "code",
+              "format": "table",
+              "instant": true,
+              "range": false,
+              "legendFormat": "",
+              "exemplar": false
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "refId": "C",
+              "expr": "max by (cluster, namespace, horizontalpodautoscaler) (kube_horizontalpodautoscaler_spec_min_replicas{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\"})",
+              "editorMode": "code",
+              "format": "table",
+              "instant": true,
+              "range": false,
+              "legendFormat": "",
+              "exemplar": false
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "refId": "D",
+              "expr": "max by (cluster, namespace, horizontalpodautoscaler) (kube_horizontalpodautoscaler_spec_max_replicas{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\"})",
+              "editorMode": "code",
+              "format": "table",
+              "instant": true,
+              "range": false,
+              "legendFormat": "",
+              "exemplar": false
+            }
+          ],
+          "transformations": [
+            {
+              "id": "merge",
+              "options": {}
+            },
+            {
+              "id": "organize",
+              "filter": {
+                "id": "byRefId",
+                "options": "A"
+              },
+              "options": {
+                "excludeByName": {},
+                "indexByName": {},
+                "renameByName": {
+                  "Value": "Текущие"
+                }
+              }
+            },
+            {
+              "id": "organize",
+              "filter": {
+                "id": "byRefId",
+                "options": "B"
+              },
+              "options": {
+                "excludeByName": {},
+                "indexByName": {},
+                "renameByName": {
+                  "Value": "Желаемые"
+                }
+              }
+            },
+            {
+              "id": "organize",
+              "filter": {
+                "id": "byRefId",
+                "options": "C"
+              },
+              "options": {
+                "excludeByName": {},
+                "indexByName": {},
+                "renameByName": {
+                  "Value": "Минимум"
+                }
+              }
+            },
+            {
+              "id": "organize",
+              "filter": {
+                "id": "byRefId",
+                "options": "D"
+              },
+              "options": {
+                "excludeByName": {},
+                "indexByName": {},
+                "renameByName": {
+                  "Value": "Максимум"
+                }
+              }
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {},
+                "indexByName": {},
+                "renameByName": {
+                  "Value #A": "Текущие",
+                  "Value #B": "Желаемые",
+                  "Value #C": "Минимум",
+                  "Value #D": "Максимум",
+                  "cluster": "Кластер",
+                  "pod": "Pod",
+                  "deployment": "Deployment",
+                  "container": "Контейнер",
+                  "node": "Узел",
+                  "phase": "Фаза",
+                  "reason": "Причина",
+                  "source": "Источник",
+                  "persistentvolumeclaim": "PVC",
+                  "storageclass": "StorageClass",
+                  "resourcequota": "ResourceQuota",
+                  "resource": "Ресурс",
+                  "horizontalpodautoscaler": "HPA"
+                }
+              }
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "Time": true,
+                  "uid": true,
+                  "__name__": true,
+                  "namespace": true
+                },
+                "indexByName": {
+                  "Кластер": 0,
+                  "HPA": 1,
+                  "Текущие": 2,
+                  "Желаемые": 3,
+                  "Минимум": 4,
+                  "Максимум": 5
+                },
+                "renameByName": {}
+              }
+            }
+          ],
+          "options": {
+            "showHeader": true,
+            "cellHeight": "sm",
+            "footer": {
+              "show": false,
+              "reducer": [
+                "sum"
+              ],
+              "countRows": false,
+              "fields": ""
+            }
+          }
+        },
+        {
+          "id": 27,
+          "type": "table",
+          "title": "HPA · текущие conditions",
+          "description": "Текущие сочетания condition/status. AbleToScale=true и ScalingActive=true ожидаемы. ScalingLimited=true означает ограничение рассчитанных реплик, например min/max, и само по себе не доказывает аварию.",
+          "gridPos": {
+            "x": 16,
+            "y": 57,
+            "w": 8,
+            "h": 8
+          },
+          "pluginVersion": "12.0.2",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "decimals": 0,
+              "noValue": "—",
+              "color": {
+                "mode": "palette-classic"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "blue",
+                    "value": null
+                  }
+                ]
+              },
+              "mappings": [
+                {
+                  "type": "special",
+                  "options": {
+                    "match": "null",
+                    "result": {
+                      "text": "Нет данных",
+                      "color": "gray"
+                    }
+                  }
+                }
+              ],
+              "custom": {
+                "align": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "inspect": false,
+                "filterable": true
+              }
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "refId": "A",
+              "expr": "(max by (cluster, namespace, horizontalpodautoscaler, condition, status) (kube_horizontalpodautoscaler_status_condition{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\", condition=~\"AbleToScale|ScalingActive|ScalingLimited\"}) == 1)",
+              "editorMode": "code",
+              "format": "table",
+              "instant": true,
+              "range": false,
+              "legendFormat": "",
+              "exemplar": false
+            }
+          ],
+          "transformations": [
+            {
+              "id": "merge",
+              "options": {}
+            },
+            {
+              "id": "organize",
+              "filter": {
+                "id": "byRefId",
+                "options": "A"
+              },
+              "options": {
+                "excludeByName": {},
+                "indexByName": {},
+                "renameByName": {
+                  "Value": "_present"
+                }
+              }
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {},
+                "indexByName": {},
+                "renameByName": {
+                  "Value #A": "_present",
+                  "cluster": "Кластер",
+                  "pod": "Pod",
+                  "deployment": "Deployment",
+                  "container": "Контейнер",
+                  "node": "Узел",
+                  "phase": "Фаза",
+                  "reason": "Причина",
+                  "source": "Источник",
+                  "persistentvolumeclaim": "PVC",
+                  "storageclass": "StorageClass",
+                  "resourcequota": "ResourceQuota",
+                  "resource": "Ресурс",
+                  "horizontalpodautoscaler": "HPA",
+                  "condition": "Condition",
+                  "status": "Status"
+                }
+              }
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "Time": true,
+                  "uid": true,
+                  "__name__": true,
+                  "namespace": true,
+                  "_present": true
+                },
+                "indexByName": {
+                  "Кластер": 0,
+                  "HPA": 1,
+                  "Condition": 2,
+                  "Status": 3
+                },
+                "renameByName": {}
+              }
+            }
+          ],
+          "options": {
+            "showHeader": true,
+            "cellHeight": "sm",
+            "footer": {
+              "show": false,
+              "reducer": [
+                "sum"
+              ],
+              "countRows": false,
+              "fields": ""
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 32,
+      "type": "row",
+      "title": "07 · Диагностика и пояснения",
+      "description": "",
+      "gridPos": {
+        "x": 0,
+        "y": 57,
+        "w": 24,
+        "h": 1
+      },
+      "pluginVersion": "12.0.2",
+      "collapsed": true,
+      "panels": [
+        {
+          "id": 29,
+          "type": "table",
+          "title": "10 контейнеров с наибольшим числом рестартов · выбранный диапазон",
+          "description": "Обычные + init контейнеры. increase за весь выбранный интервал, до max-дедупликации. Удалённые/заменённые Pod остаются в результате при Pod=All. Это оценка с экстраполяцией и округлением; первый запуск нового контейнера не является рестартом.",
+          "gridPos": {
+            "x": 0,
+            "y": 58,
+            "w": 24,
+            "h": 8
+          },
+          "pluginVersion": "12.0.2",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "decimals": 0,
+              "noValue": "—",
+              "color": {
+                "mode": "palette-classic"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "blue",
+                    "value": null
+                  }
+                ]
+              },
+              "mappings": [
+                {
+                  "type": "special",
+                  "options": {
+                    "match": "null",
+                    "result": {
+                      "text": "Нет данных",
+                      "color": "gray"
+                    }
+                  }
+                }
+              ],
+              "custom": {
+                "align": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "inspect": false,
+                "filterable": true
+              }
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "refId": "A",
+              "expr": "topk(10, (label_replace(max by (cluster, namespace, pod, uid, container) (increase(kube_pod_container_status_restarts_total{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\", pod=~\"${pod:regex}\"}[$__range])), \"container_type\", \"app\", \"namespace\", \".*\") or label_replace(max by (cluster, namespace, pod, uid, container) (increase(kube_pod_init_container_status_restarts_total{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\", pod=~\"${pod:regex}\"}[$__range])), \"container_type\", \"init\", \"namespace\", \".*\"))) > 0",
+              "editorMode": "code",
+              "format": "table",
+              "instant": true,
+              "range": false,
+              "legendFormat": "",
+              "exemplar": false
+            }
+          ],
+          "transformations": [
+            {
+              "id": "merge",
+              "options": {}
+            },
+            {
+              "id": "organize",
+              "filter": {
+                "id": "byRefId",
+                "options": "A"
+              },
+              "options": {
+                "excludeByName": {},
+                "indexByName": {},
+                "renameByName": {
+                  "Value": "Рестарты за диапазон"
+                }
+              }
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {},
+                "indexByName": {},
+                "renameByName": {
+                  "Value #A": "Рестарты за диапазон",
+                  "cluster": "Кластер",
+                  "pod": "Pod",
+                  "deployment": "Deployment",
+                  "container": "Контейнер",
+                  "node": "Узел",
+                  "phase": "Фаза",
+                  "reason": "Причина",
+                  "source": "Источник",
+                  "persistentvolumeclaim": "PVC",
+                  "storageclass": "StorageClass",
+                  "resourcequota": "ResourceQuota",
+                  "resource": "Ресурс",
+                  "horizontalpodautoscaler": "HPA",
+                  "container_type": "Тип"
+                }
+              }
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "Time": true,
+                  "uid": true,
+                  "__name__": true,
+                  "namespace": true
+                },
+                "indexByName": {
+                  "Кластер": 0,
+                  "Pod": 1,
+                  "Контейнер": 2,
+                  "Тип": 3,
+                  "Рестарты за диапазон": 4
+                },
+                "renameByName": {}
+              }
+            }
+          ],
+          "options": {
+            "showHeader": true,
+            "cellHeight": "sm",
+            "footer": {
+              "show": false,
+              "reducer": [
+                "sum"
+              ],
+              "countRows": false,
+              "fields": ""
+            },
+            "sortBy": [
+              {
+                "displayName": "Рестарты за диапазон",
+                "desc": true
+              }
+            ]
+          }
+        },
+        {
+          "id": 30,
+          "type": "table",
+          "title": "Возраст последнего sample kube_pod_info",
+          "description": "Время с последнего sample kube_pod_info, по namespace/cluster, без Pod-фильтра. Это не проверка свежести Kubernetes API или доступности приложения. При полном отсутствии серий таблица пуста. При namespace без Pod отсутствие этой метрики ожидаемо.",
+          "gridPos": {
+            "x": 0,
+            "y": 66,
+            "w": 24,
+            "h": 5
+          },
+          "pluginVersion": "12.0.2",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "decimals": 0,
+              "noValue": "—",
+              "color": {
+                "mode": "palette-classic"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "blue",
+                    "value": null
+                  }
+                ]
+              },
+              "mappings": [
+                {
+                  "type": "special",
+                  "options": {
+                    "match": "null",
+                    "result": {
+                      "text": "Нет данных",
+                      "color": "gray"
+                    }
+                  }
+                }
+              ],
+              "custom": {
+                "align": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "inspect": false,
+                "filterable": true
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Возраст sample"
+                },
+                "properties": [
+                  {
+                    "id": "unit",
+                    "value": "s"
+                  },
+                  {
+                    "id": "decimals",
+                    "value": 0
+                  },
+                  {
+                    "id": "thresholds",
+                    "value": {
+                      "mode": "absolute",
+                      "steps": [
+                        {
+                          "color": "green",
+                          "value": null
+                        },
+                        {
+                          "color": "orange",
+                          "value": 120
+                        },
+                        {
+                          "color": "red",
+                          "value": 300
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "id": "custom.cellOptions",
+                    "value": {
+                      "type": "color-text"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "refId": "A",
+              "expr": "time() - max by (cluster, namespace) (timestamp(kube_pod_info{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\"}))",
+              "editorMode": "code",
+              "format": "table",
+              "instant": true,
+              "range": false,
+              "legendFormat": "",
+              "exemplar": false
+            }
+          ],
+          "transformations": [
+            {
+              "id": "merge",
+              "options": {}
+            },
+            {
+              "id": "organize",
+              "filter": {
+                "id": "byRefId",
+                "options": "A"
+              },
+              "options": {
+                "excludeByName": {},
+                "indexByName": {},
+                "renameByName": {
+                  "Value": "Возраст sample"
+                }
+              }
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {},
+                "indexByName": {},
+                "renameByName": {
+                  "Value #A": "Возраст sample",
+                  "cluster": "Кластер",
+                  "pod": "Pod",
+                  "deployment": "Deployment",
+                  "container": "Контейнер",
+                  "node": "Узел",
+                  "phase": "Фаза",
+                  "reason": "Причина",
+                  "source": "Источник",
+                  "persistentvolumeclaim": "PVC",
+                  "storageclass": "StorageClass",
+                  "resourcequota": "ResourceQuota",
+                  "resource": "Ресурс",
+                  "horizontalpodautoscaler": "HPA"
+                }
+              }
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "Time": true,
+                  "uid": true,
+                  "__name__": true,
+                  "namespace": true
+                },
+                "indexByName": {
+                  "Кластер": 0,
+                  "Возраст sample": 1
+                },
+                "renameByName": {}
+              }
+            }
+          ],
+          "options": {
+            "showHeader": true,
+            "cellHeight": "sm",
+            "footer": {
+              "show": false,
+              "reducer": [
+                "sum"
+              ],
+              "countRows": false,
+              "fields": ""
+            }
+          }
+        },
+        {
+          "id": 31,
+          "type": "text",
+          "title": "Как читать дашборд",
+          "description": "",
+          "gridPos": {
+            "x": 0,
+            "y": 71,
+            "w": 24,
+            "h": 8
+          },
+          "pluginVersion": "12.0.2",
+          "options": {
+            "mode": "markdown",
+            "content": "### Фильтры и границы\n- **Namespace** — одно точное имя. Поле экранируется, All для namespace отсутствует. После выбора нажмите Enter.\n- **Кластер** — label `cluster`, если он есть. All подходит для одного кластера и для метрик без этого label. В общем источнике с несколькими кластерами выберите нужный; иначе данные одного имени namespace складываются между кластерами. Если разделяющий label называется иначе, адаптируйте JSON или используйте отдельный datasource.\n- **Pod** — All или несколько Pod, влияет только на панели Pod и requests/limits.\n\n### Интерпретация\n- Верхние карточки и таблицы — на конец выбранного диапазона; графики — за весь диапазон. Перезапуски 1h всегда используют последний час, а Top 10 — весь выбранный диапазон.\n- Succeeded и Failed не входят в активные; Failed отдельно показаны как диагностический сигнал. Временно NotReady/Pending и расхождения реплик возможны при штатном запуске или rollout.\n- Пустая таблица причин может означать отсутствие проблем либо отсутствие опциональной метрики. «Нет данных» не заменяется искусственным нулём. Запросы предполагают стандартные labels kube-state-metrics.\n- Используются встроенные панели Grafana и Prometheus. Оповещения не создаются. Фильтр namespace ограничивает запросы дашборда; доступ к метрикам задаётся правами datasource."
+          }
+        }
+      ]
+    }
+  ],
+  "refresh": "1m",
+  "schemaVersion": 41,
+  "tags": [
+    "kubernetes",
+    "namespace",
+    "kube-state-metrics",
+    "applications"
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "namespace",
+        "label": "Namespace",
+        "type": "textbox",
+        "query": "YOUR_NAMESPACE",
+        "current": {
+          "text": "YOUR_NAMESPACE",
+          "value": "YOUR_NAMESPACE"
+        },
+        "options": [],
+        "hide": 0,
+        "description": "Введите одно точное имя своего namespace и нажмите Enter. Обязательный фильтр для всех панелей.",
+        "skipUrlSync": false
+      },
+      {
+        "name": "cluster",
+        "label": "Кластер",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "query": {
+          "query": "label_values(kube_pod_info{namespace=~\"${namespace:regex}\"}, cluster)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "definition": "label_values(kube_pod_info{namespace=~\"${namespace:regex}\"}, cluster)",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "options": [],
+        "refresh": 2,
+        "sort": 1,
+        "hide": 0,
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": false,
+        "regex": "",
+        "allowCustomValue": false,
+        "description": "Label cluster. Для метрик без label cluster оставьте All. Если источник общий для нескольких кластеров, выберите один."
+      },
+      {
+        "name": "pod",
+        "label": "Pod (поды и ресурсы)",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "query": {
+          "query": "label_values(kube_pod_info{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\"}, pod)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "definition": "label_values(kube_pod_info{namespace=~\"${namespace:regex}\", cluster=~\"${cluster:regex}\"}, pod)",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "options": [],
+        "refresh": 2,
+        "sort": 1,
+        "hide": 0,
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": true,
+        "regex": "",
+        "allowCustomValue": false,
+        "description": "Только панели подов и requests/limits. All включает историю удалённых Pod. Остальные блоки показывают весь namespace."
+      }
+    ]
+  },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "30s",
+      "1m",
+      "5m",
+      "15m",
+      "30m"
+    ],
+    "time_options": [
+      "15m",
+      "1h",
+      "6h",
+      "12h",
+      "24h",
+      "2d",
+      "7d"
+    ]
+  },
+  "timezone": "browser",
+  "title": "Kubernetes · Мой namespace · Состояние приложений",
+  "version": 1,
+  "weekStart": ""
+}
